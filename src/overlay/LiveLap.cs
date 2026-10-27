@@ -19,7 +19,7 @@ public sealed class LiveSample {
     public string Track,Driver,Car,CarClass;
     public int Session,Slot,Laps,Sector,CountLapFlag;
     public bool Realtime,InPits;
-    public double SessionTime,LapStart,Distance,CurrentS1,CurrentS12,LastS1,LastS12,LastLap,BestLap,BestS1,BestS12;
+    public double SessionTime,LapStart,Distance,PathLateral,TrackEdge,CurrentS1,CurrentS12,LastS1,LastS12,LastLap,BestLap,BestS1,BestS12;
 }
 public sealed class Rf2ScoringReader : IDisposable {
     MemoryMappedFile mapping;
@@ -51,6 +51,7 @@ public sealed class Rf2ScoringReader : IDisposable {
                         SessionTime=BitConverter.ToDouble(bytes,80),Realtime=bytes[127]!=0,
                         Laps=BitConverter.ToInt16(bytes,p+100),Sector=bytes[p+102],CountLapFlag=bytes[p+506],InPits=bytes[p+198]!=0,
                         LapStart=BitConverter.ToDouble(bytes,p+256),Distance=BitConverter.ToDouble(bytes,p+104),
+                        PathLateral=BitConverter.ToDouble(bytes,p+112),TrackEdge=BitConverter.ToDouble(bytes,p+120),
                         CurrentS1=BitConverter.ToDouble(bytes,p+176),CurrentS12=BitConverter.ToDouble(bytes,p+184),
                         LastS1=BitConverter.ToDouble(bytes,p+152),LastS12=BitConverter.ToDouble(bytes,p+160),LastLap=BitConverter.ToDouble(bytes,p+168),
                         BestLap=BitConverter.ToDouble(bytes,p+144),BestS1=BitConverter.ToSingle(bytes,p+528),BestS12=BitConverter.ToSingle(bytes,p+532)

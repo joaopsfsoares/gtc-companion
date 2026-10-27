@@ -84,6 +84,20 @@ As ideais usam setores de voltas válidas da classificação, da sessão GTC e d
 
 As preferências e o histórico ficam, por defeito, em `%LOCALAPPDATA%\GTC-Companion`. Cada utilizador mantém o seu próprio histórico. Não partilhes a pasta de dados nem o link de entrada. A app não verifica inscrições; a organização e o servidor controlam a autorização de acesso.
 
+## Treino de ritmo
+
+Na página **Treino**, escolhe a duração em **voltas** ou **minutos**, o **ritmo alvo** (`m:ss,mmm`) e a **janela de consistência** em segundos para cada lado do alvo. **Iniciar stint** prepara a contagem na passagem seguinte pela meta; a volta de saída fica de fora. O treino funciona em singleplayer ou num servidor, sem precisar de classificação GTC.
+
+Durante o stint, o HUD mostra voltas completas, voltas/tempo restantes, média, diferencial para o alvo, última volta, voltas dentro da janela e saídas estimadas. Média e diferencial usam todas as voltas completas, incluindo inválidas. Verde significa mais rápido que o alvo e vermelho mais lento. As configurações de duração e ritmo ficam fixas durante o stint.
+
+Nos treinos por minutos, o contador chega a zero e aguarda pela passagem seguinte na meta, contando apenas voltas completas. Uma ida às boxes, mudança de carro/pista/sessão ou salto de voltas interrompe o stint, preservando o resumo. A pausa do jogo não acrescenta tempo; na ausência de telemetria, o progresso fica suspenso. Voltas com dados incompletos são assinaladas.
+
+O gráfico apresenta um ponto por volta, a linha do alvo e os limites superior/inferior da janela. Uma cruz assinala invalidade ou dados incompletos; o círculo laranja indica uma volta com saída estimada. Passa o rato sobre um ponto para os detalhes. **Guardar gráfico** exporta uma imagem PNG. O seletor permite rever os últimos 30 stints; os registos locais ficam em `training/stints` na pasta de dados.
+
+**Mover HUD** permite arrastá-lo; um duplo clique volta a bloqueá-lo. A posição e a opacidade ficam guardadas. O modo bloqueado deixa passar os cliques para o jogo.
+
+As **saídas de pista são estimadas**, não são as infrações oficiais do servidor. É contado um evento quando o centro do carro permanece mais de 1 m além do limite reportado pela telemetria durante 0,6 s. Só é contado outro evento depois de regressar ao interior durante 0,6 s. Boxes e menus não contam. O traçado e falhas de telemetria podem afetar esta estimativa.
+
 ## Versão e atualizações
 
 A página **Sobre** apresenta a versão instalada, os créditos, as licenças e as versões dos motores como links para os projetos oficiais. **Ver atualizações** abre as versões publicadas no GitHub, incluindo as de teste. Não instala atualizações automaticamente.

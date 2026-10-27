@@ -37,3 +37,5 @@ components/
 component-cache/
 third-party-source/
 engines-migration.json
+
+training/

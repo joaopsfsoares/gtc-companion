@@ -1,0 +1,29 @@
+// Copyright (C) 2026 GTC Companion contributors.
+// SPDX-License-Identifier: GPL-3.0-only
+using System;
+using System.IO;
+using System.Linq;
+
+public static class TrainingTests {
+    static void Check(bool condition,string message){if(!condition)throw new Exception("Treino: "+message);}
+    static LiveSample Sample(double time,double start,int laps,double last=82,bool outside=false,int valid=2){return new LiveSample{Track="Test track",Car="Test car",CarClass="Cup",Driver="Test driver",Session=1,Slot=1,Realtime=true,Distance=100,SessionTime=time,LapStart=start,Laps=laps,LastLap=last,CountLapFlag=valid,PathLateral=outside?8:0,TrackEdge=5,Sector=time-start<20?1:time-start<50?2:0};}
+    static TrainingModel Start(TrainingOptions options){var m=new TrainingModel();m.Arm(options);m.Update(Sample(10,0,0));m.Update(Sample(80.1,80,1));Check(m.Run.State=="running"&&m.Run.Laps.Count==0,"A saída e a primeira volta parcial devem ficar fora da contagem");return m;}
+    public static void Run(){
+        double pace;Check(TrainingMath.ParsePace("1:22,700",out pace)&&Math.Abs(pace-82.7)<.0001,"Formato português de ritmo");Check(TrainingMath.ParsePace("1:22.7",out pace),"Formato com ponto");Check(!TrainingMath.ParsePace("1:82",out pace)&&!TrainingMath.ParsePace("NaN",out pace),"Recusar ritmos inválidos");
+        var model=Start(new TrainingOptions{Amount=3,Target=82,Tolerance=.5});
+        model.Update(Sample(81,80,1,82,true));model.Update(Sample(81.4,80,1,82,true));Check(model.Run.OffTracks==0,"Ignorar passagens fugazes além dos limites");model.Update(Sample(81.7,80,1,82,true));model.Update(Sample(82.4,80,1,82,true));Check(model.Run.OffTracks==1,"Contar uma saída contínua uma única vez");
+        model.Update(Sample(83,80,1));model.Update(Sample(83.7,80,1));model.Update(Sample(84,80,1,82,true,1));model.Update(Sample(84.7,80,1,82,true,1));Check(model.Run.OffTracks==2,"Contar uma nova saída após regressar à pista");
+        model.Update(Sample(164.1,164,2,84));model.Update(Sample(246.1,246,3,82));model.Update(Sample(327.1,327,4,81));
+        Check(model.Run.State=="completed"&&model.Run.Laps.Count==3,"Terminar ao completar as voltas previstas");Check(Math.Abs(model.Run.Average.Value-247d/3)<.00001,"Incluir voltas inválidas na média");Check(!model.Run.Laps[0].Valid&&model.Run.Laps[0].OffTracks==2,"Preservar validade e saídas por volta");Check(model.Run.InWindow==1,"Calcular a janela relativamente ao alvo");model.Update(Sample(409.1,409,5,82));Check(model.Run.Laps.Count==3,"Não continuar a contar depois do fim");
+        var timed=new TrainingModel();timed.Arm(new TrainingOptions{Minutes=true,Amount=1,Target=30,Tolerance=.5});timed.Update(Sample(10,0,0));timed.Update(Sample(20.1,20,1,20));timed.Update(Sample(50.1,50,2,30));timed.Update(Sample(82,50,2,30));Check(timed.Run.Active&&timed.Notice.Contains("termina esta volta"),"Atingir minutos a meio da volta deve aguardar pela meta");timed.Update(Sample(83.1,83,3,33));Check(timed.Run.State=="completed"&&timed.Run.Laps.Count==2&&timed.Run.Elapsed==63,"Contar apenas voltas completas no objetivo por minutos");
+        var frozen=Start(new TrainingOptions());frozen.Update(Sample(82,80,1));double elapsed=frozen.Run.Elapsed;frozen.Update(null);Check(frozen.Run.Elapsed==elapsed&&frozen.Run.Active,"Congelar progresso na ausência de telemetria");var reset=Sample(1,0,0);frozen.Update(reset);Check(frozen.Run.State=="interrupted"&&frozen.Run.Laps.Count==0,"Não misturar sessões reiniciadas");
+        var skipped=Start(new TrainingOptions());skipped.Update(Sample(245,244,3));Check(skipped.Run.State=="interrupted"&&skipped.Run.Laps.Count==0,"Não inventar voltas perdidas numa falha de leitura");
+        var pit=Start(new TrainingOptions());var boxes=Sample(85,80,1);boxes.InPits=true;boxes.PathLateral=100;pit.Update(boxes);Check(pit.Run.State=="interrupted"&&pit.Run.OffTracks==0,"Regresso às boxes não é uma saída de pista");
+        var stopped=Start(new TrainingOptions());stopped.Stop();Check(stopped.Run.State=="stopped","Terminar manualmente e manter o resumo");TrainingStore.Save(stopped.Run);var restored=TrainingStore.History().First(x=>x.Id==stopped.Run.Id);Check(restored.State=="stopped"&&restored.Options.Target==stopped.Run.Options.Target,"Histórico persistente dos stints");
+        var clean=Start(new TrainingOptions{Amount=1,Target=82,Tolerance=.5});for(int second=81;second<162;second++)clean.Update(Sample(second,80,1));clean.Update(Sample(162.1,162,2,82));Check(clean.Run.Laps.Single().CompleteData&&clean.Run.Laps.Single().Valid,"Reconhecer uma volta acompanhada sem interrupções");
+        var invalidTime=Start(new TrainingOptions{Amount=1,Target=82,Tolerance=.5});for(int second=81;second<162;second++)invalidTime.Update(Sample(second,80,1,82,false,1));invalidTime.Update(Sample(162.1,162,2,-1));Check(invalidTime.Run.State=="completed"&&invalidTime.Run.Laps.Single().Time==82&&!invalidTime.Run.Laps.Single().Valid,"Conservar a duração entre metas quando o jogo não fornece o tempo da volta inválida");
+        var uncounted=Start(new TrainingOptions{Amount=1,Target=82,Tolerance=.5});for(int second=81;second<162;second++)uncounted.Update(Sample(second,80,1,82,false,0));uncounted.Update(Sample(162.1,162,1,-1));Check(uncounted.Run.State=="completed"&&uncounted.Run.Laps.Single().Time==82,"Contar a passagem física na meta mesmo quando uma volta inválida não incrementa o contador do jogo");
+        var interrupted=Start(new TrainingOptions());var restoredModel=new TrainingModel();restoredModel.Restore(interrupted.Run);Check(restoredModel.Run.State=="interrupted","Reabrir a app não retoma silenciosamente um stint anterior");
+        File.WriteAllText(Path.Combine(CompanionStore.Root,"training-tests.txt"),"OK: duração por voltas/minutos; início na meta; média de todas as voltas; tolerância; saídas contínuas e reentrada; boxes; fim de stint; telemetria perdida; reinício; persistência.");
+    }
+}

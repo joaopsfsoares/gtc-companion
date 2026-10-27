@@ -20,7 +20,7 @@ public sealed class DriverActivitySnapshot {
     public DriverPresence Find(TimingRow row,string track,DateTime now){
         if(row==null||now-UpdatedUtc>TimeSpan.FromSeconds(3)||TimingData.Normalize(Track)!=TimingData.Normalize(track))return DriverPresence.Unknown;
         var matches=Drivers.Where(x=>TimingData.Normalize(x.Name)==TimingData.Normalize(row.driverName)).ToList();
-        if(matches.Count>1)matches=matches.Where(x=>TimingData.Normalize(x.Class)==TimingData.Normalize(row.vehicleClass)).ToList();
+        if(!string.IsNullOrWhiteSpace(row.vehicleClass))matches=matches.Where(x=>string.IsNullOrWhiteSpace(x.Class)||TimingData.Normalize(x.Class)==TimingData.Normalize(row.vehicleClass)).ToList();
         return matches.Count==1?matches[0].State:DriverPresence.Unknown;
     }
     public static DriverActivitySnapshot Read(byte[] data,int count,DateTime now){

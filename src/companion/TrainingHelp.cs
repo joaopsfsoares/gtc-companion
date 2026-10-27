@@ -8,13 +8,8 @@ using System.Windows.Forms;
 
 public sealed partial class CompanionWindow {
     double? TrainingBest(out string context){
-        var sample=trainingRecords.Latest;
-        if(sample!=null){
-            context=sample.Track+" · "+sample.Driver;string key=TimingData.Normalize(sample.Track)+"|"+TimingData.Normalize(sample.CarClass)+"|"+TimingData.Normalize(sample.Driver);var record=trainingRecords.Book.Entries.FirstOrDefault(x=>x.Key==key);double best=sample.BestLap;if(record!=null&&record.Time.HasValue&&(!TrainingMath.Positive(best)||record.Time.Value<best))best=record.Time.Value;if(TrainingMath.Positive(best))return best;
-        }
-        var profile=CompetitionProfiles.Selected(settings);var cache=profile==null?null:CompanionStore.Read<CachedSnapshot>(Path.Combine(CompetitionProfiles.DataDirectory(profile),"cache.json"));var row=cache==null||cache.Data==null?null:(cache.Data.rows??new System.Collections.Generic.List<TimingRow>()).FirstOrDefault(x=>TimingData.Normalize(x.driverName)==TimingData.Normalize(driver.Text));
-        if(row!=null&&cache.Data.activeRound!=null){context=cache.Data.activeRound.trackName+" · "+row.driverName;string key=TimingData.Normalize(cache.Data.activeRound.trackName)+"|"+TimingData.Normalize(row.vehicleClass)+"|"+TimingData.Normalize(row.driverName);var record=trainingRecords.Book.Entries.FirstOrDefault(x=>x.Key==key);double best=row.bestLapTime;if(record!=null&&record.Time.HasValue&&(!TrainingMath.Positive(best)||record.Time.Value<best))best=record.Time.Value;if(TrainingMath.Positive(best))return best;}
-        context="Introduz uma melhor volta válida nas condições de referência.";return null;
+        var profile=CompetitionProfiles.Selected(settings);var caches=profile==null?new CachedSnapshot[0]:new[]{CompanionStore.Read<CachedSnapshot>(Path.Combine(CompetitionProfiles.DataDirectory(profile),"leaderboard-cache.json")),CompanionStore.Read<CachedSnapshot>(Path.Combine(CompetitionProfiles.DataDirectory(profile),"cache.json"))};
+        return GtcDataPriority.TrainingBest(driver.Text,DateTime.UtcNow-trainingRecords.LatestUtc<=TimeSpan.FromSeconds(3)?trainingRecords.Latest:null,caches,driverHistoryService.Collector.Book.Records,profile==null?0:profile.TimingId,trainingRecords.Book,out context);
     }
     void ShowTrainingHelp(Action<double> apply,bool active){using(var dialog=CreateTrainingHelp(apply,active))dialog.ShowDialog(this);}
     Form CreateTrainingHelp(Action<double> apply,bool active,double? example=null){
@@ -24,6 +19,7 @@ public sealed partial class CompanionWindow {
         Action<string,int,bool> text=(value,size,bold)=>{var label=TextLabel(value,size,bold);label.MaximumSize=new Size(P(475),0);label.Margin=new Padding(0,0,0,P(12));stack.Controls.Add(label);};
         text("Ritmo de corrida a partir da melhor volta",16,true);
         text("Alvo = melhor volta válida × (1 + margem / 100).",12,true);
+        text("A referência dá prioridade à classificação e às voltas válidas disponíveis na GTC. Os tempos locais servem de apoio quando falta informação online. Confirma a origem, a pista e as condições indicadas antes de aplicar o alvo.",11,false);
         text("Como estimativa inicial, experimenta acrescentar 0,5–1,0% ao tempo. É uma margem ajustável, não uma regra universal: combustível, pneus, temperatura e tráfego alteram o ritmo. Confirma o alvo com a média de 10–15 voltas nas condições da corrida.",11,false);
         var calculator=new TableLayoutPanel{AutoSize=true,Dock=DockStyle.Top,ColumnCount=2,BackColor=GtcTheme.Surface,Padding=new Padding(P(12)),Margin=new Padding(0,0,0,P(12))};calculator.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,65));calculator.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,35));stack.Controls.Add(calculator);
         calculator.Controls.Add(TextLabel("Melhor volta válida",11),0,0);calculator.Controls.Add(TextLabel("Margem (%)",11),1,0);
@@ -31,7 +27,8 @@ public sealed partial class CompanionWindow {
         var source=TextLabel(context,10);source.ForeColor=GtcTheme.Muted;source.MaximumSize=new Size(P(445),0);calculator.Controls.Add(source,0,2);calculator.SetColumnSpan(source,2);
         var result=TextLabel("",14,true);result.ForeColor=GtcTheme.Accent;result.Margin=new Padding(0,P(10),0,P(10));calculator.Controls.Add(result,0,3);calculator.SetColumnSpan(result,2);
         var use=Button("Aplicar ao próximo stint",245,true);use.Enabled=!active;calculator.Controls.Add(use,0,4);calculator.SetColumnSpan(use,2);double calculated=0;
-        Action calculate=()=>{double lap;if(!TrainingMath.ParsePace(best.Text,out lap)){result.Text="Usa o formato m:ss,mmm.";use.Enabled=false;return;}try{calculated=TrainingMath.RacePace(lap,(double)margin.Value);result.Text="Alvo "+TimingData.Lap(calculated)+" · "+TrainingMath.Delta(calculated-lap);use.Enabled=!active;}catch(Exception ex){result.Text=ex.Message;use.Enabled=false;}};best.TextChanged+=(s,e)=>{source.Text="Referência editável · confirma a pista e as condições.";calculate();};margin.ValueChanged+=(s,e)=>calculate();calculate();
+        bool edited=false,loading=false;Action calculate=()=>{double lap;if(!TrainingMath.ParsePace(best.Text,out lap)){result.Text="Usa o formato m:ss,mmm.";use.Enabled=false;return;}try{calculated=TrainingMath.RacePace(lap,(double)margin.Value);result.Text="Alvo "+TimingData.Lap(calculated)+" · "+TrainingMath.Delta(calculated-lap);use.Enabled=!active;}catch(Exception ex){result.Text=ex.Message;use.Enabled=false;}};best.TextChanged+=(s,e)=>{if(!loading){edited=true;source.Text="Referência editável · confirma a pista e as condições.";}calculate();};margin.ValueChanged+=(s,e)=>calculate();calculate();
+        dialog.Shown+=async(s,e)=>{if(PreviewOnly||example.HasValue)return;await history.Collect(settings);if(dialog.IsDisposed||edited)return;string refreshedContext;var refreshed=TrainingBest(out refreshedContext);if(refreshed.HasValue){loading=true;best.Text=TimingData.Lap(refreshed.Value);source.Text=refreshedContext;loading=false;}};
         use.Click+=(s,e)=>{apply(calculated);dialog.Close();};
         if(active)text("Termina o stint em curso para aplicar outro alvo.",11,false);
         text("Como configurar o stint",14,true);
@@ -41,7 +38,7 @@ public sealed partial class CompanionWindow {
         text("As saídas são estimadas pela posição do carro e não equivalem às penalizações oficiais. Uma falha de telemetria pode tornar uma volta incompleta para efeitos de recordes.",10,false);
         text("Gráficos dos outros pilotos",14,true);
         text("Em Treino → Pilotos e stints, escolhe o piloto, a sessão e o stint. As linhas PIT assinalam boxes; ~ indica um limite aproximado. A média limpa usa apenas voltas válidas, sem boxes e com dados completos. Podes incluir as outras voltas e comparar com o mesmo alvo do teu treino. Voltas em falta não se transformam em paragens.",11,false);
-        text("A telemetria recolhe os carros da sessão enquanto o Companion está aberto. Atualizar GTC consulta o histórico disponível da sessão online; a recolha em segundo plano é opcional, a cada 15 s. Nem todos os pilotos ou voltas anteriores estão disponíveis. Os dados ficam guardados neste PC para rever mais tarde.",11,false);
+        text("As sessões GTC têm prioridade nos gráficos. A telemetria local recolhe os carros como apoio enquanto o Companion está aberto. Atualizar GTC consulta o histórico disponível da sessão online; a recolha em segundo plano vem ativa e pode ser desligada, com intervalo de 15 s. Nem todos os pilotos ou voltas anteriores estão disponíveis. Os dados ficam guardados neste PC para rever mais tarde.",11,false);
         var close=Button("Fechar",110);stack.Controls.Add(close);close.Click+=(s,e)=>dialog.Close();GtcWindowTheme.Attach(dialog);return dialog;
     }
     public void RenderTrainingHelp(string destination){using(var dialog=CreateTrainingHelp(value=>{},false,82.247)){dialog.ShowInTaskbar=false;dialog.StartPosition=FormStartPosition.Manual;dialog.Location=new Point(-20000,-20000);dialog.Show();Application.DoEvents();using(var bitmap=new Bitmap(dialog.ClientSize.Width,dialog.ClientSize.Height)){dialog.DrawToBitmap(bitmap,new Rectangle(Point.Empty,dialog.ClientSize));bitmap.Save(destination);}dialog.Close();}}

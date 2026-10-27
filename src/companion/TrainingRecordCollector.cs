@@ -7,12 +7,13 @@ using System;
 public sealed class TrainingRecordCollector {
     public readonly PersonalRecordBook Book=new PersonalRecordBook();
     public LiveSample Latest {get;private set;}
+    public DateTime LatestUtc {get;private set;}
     string identity;
     double start,lastTime;
     int laps;
     bool observed,valid;
     public void Observe(LiveSample sample){
-        if(sample==null)return;Latest=sample;
+        if(sample==null)return;Latest=sample;LatestUtc=DateTime.UtcNow;
         string key=sample.Track+"|"+sample.Car+"|"+sample.Driver+"|"+sample.Session+"|"+sample.Slot;
         if(key!=identity||sample.SessionTime<lastTime-.5){identity=key;start=sample.LapStart;laps=sample.Laps;observed=false;valid=false;}
         if(sample.SessionTime-lastTime>3)valid=false;

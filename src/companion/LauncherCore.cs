@@ -127,7 +127,7 @@ public sealed class LaunchEngine : IDisposable {
     public static void StartOverlay(LaunchSettings settings,bool settingsOnly){
         var selected=CompetitionProfiles.EnsureSelected(settings);if(selected==null)throw new InvalidOperationException("Adiciona primeiro um campeonato.");var active=CompetitionProfiles.RunningOverlay(settings);
         string root=CompetitionProfiles.DataDirectory(selected);Directory.CreateDirectory(root);
-        if(active!=null&&(active.ProfileId!=selected.Id||active.TimingId!=selected.TimingId||active.Driver!=settings.Driver||active.Directory!=root||active.Standalone!=settingsOnly||settings.TimingId==0)){
+        if(active!=null&&(active.Version!=AppInfo.Version||active.ProfileId!=selected.Id||active.TimingId!=selected.TimingId||active.Driver!=settings.Driver||active.Directory!=root||active.Standalone!=settingsOnly||settings.TimingId==0)){
             File.WriteAllText(Path.Combine(active.Directory,"request-close.txt"),"");var wait=Stopwatch.StartNew();while(Running("GTC-Timing")&&wait.ElapsedMilliseconds<3500)Thread.Sleep(100);
             if(Running("GTC-Timing"))throw new InvalidOperationException("Fecha o overlay GTC para aplicar o campeonato selecionado.");active=null;
         }
@@ -141,7 +141,7 @@ public sealed class LaunchEngine : IDisposable {
         using(var source=typeof(LaunchEngine).Assembly.GetManifestResourceStream("GtcOverlay"))using(var target=File.Create(exe))source.CopyTo(target);
         var info=new ProcessStartInfo(exe,settingsOnly?"--standalone":""){WorkingDirectory=bin,UseShellExecute=false};
         info.EnvironmentVariables["GTC_TIMING_DATA"]=root;info.EnvironmentVariables["GTC_TIMING_PREFERENCES"]=prefRoot;info.EnvironmentVariables["GTC_TIMING_LAUNCHER"]=typeof(LaunchEngine).Assembly.Location;info.EnvironmentVariables["GTC_COMPANION_DATA"]=CompanionStore.Root;info.EnvironmentVariables["GTC_TIMING_MANAGED"]="1";info.EnvironmentVariables["GTC_TIMING_DRIVER"]=settings.Driver;info.EnvironmentVariables["GTC_TIMING_ID"]=settings.TimingId.ToString();
-        using(var process=Process.Start(info))CompanionStore.Write("active-overlay.json",new OverlayInstance{Pid=process.Id,ProfileId=selected.Id,Name=selected.Name,Directory=root,Driver=settings.Driver,TimingId=settings.TimingId,Standalone=settingsOnly,GameStamp=CompetitionProfiles.GameStamp()});
+        using(var process=Process.Start(info))CompanionStore.Write("active-overlay.json",new OverlayInstance{Version=AppInfo.Version,Pid=process.Id,ProfileId=selected.Id,Name=selected.Name,Directory=root,Driver=settings.Driver,TimingId=settings.TimingId,Standalone=settingsOnly,GameStamp=CompetitionProfiles.GameStamp()});
     }
     async Task<object> GetJson(string uri,CancellationToken cancel){using(var request=CancellationTokenSource.CreateLinkedTokenSource(cancel)){request.CancelAfter(2000);using(var response=await http.GetAsync(uri,request.Token)){response.EnsureSuccessStatusCode();return CompanionStore.Json.DeserializeObject(await response.Content.ReadAsStringAsync());}}}
     static string Value(Dictionary<string,object> map,string key){return map!=null&&map.ContainsKey(key)?Convert.ToString(map[key]):"";}

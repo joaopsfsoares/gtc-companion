@@ -14,18 +14,21 @@ using System.Threading;
 using System.Threading.Tasks;
 
 public sealed class HistoryCollector:IDisposable {
-    readonly HttpClient http=new HttpClient{Timeout=TimeSpan.FromSeconds(10)};
+    readonly HttpClient http;
     readonly CancellationTokenSource cancel=new CancellationTokenSource();
     bool busy;
+    readonly System.Collections.Generic.Dictionary<int,DateTime> nextFetch=new System.Collections.Generic.Dictionary<int,DateTime>();
+    public HistoryCollector(HttpMessageHandler handler=null){http=handler==null?new HttpClient():new HttpClient(handler);http.Timeout=TimeSpan.FromSeconds(10);http.MaxResponseContentBufferSize=4000000;}
     public async Task Collect(LaunchSettings settings){
-        if(busy||!settings.Configured)return;busy=true;
+        if(busy||settings==null||settings.Competitions==null)return;busy=true;
         try{
             foreach(var profile in settings.Competitions.Where(p=>p.TimingId>0).Select(p=>p.Copy()).ToArray()){
-            try{int id=profile.TimingId;
+            try{int id=profile.TimingId;DateTime due;if(nextFetch.TryGetValue(id,out due)&&DateTime.UtcNow<due)continue;nextFetch[id]=DateTime.UtcNow.AddSeconds(15);
             using(var response=await http.GetAsync("https://api.gtcracecenter.com/livetiming/configs/"+id+"/leaderboard/snapshot",cancel.Token)){
                 response.EnsureSuccessStatusCode();var snapshot=CompanionStore.Json.Deserialize<TimingSnapshot>(await response.Content.ReadAsStringAsync());
                 if(snapshot==null||snapshot.activeRound==null||snapshot.rows==null||string.IsNullOrWhiteSpace(snapshot.activeRound.trackName))throw new InvalidDataException();
                 string directory=CompetitionProfiles.DataDirectory(profile);Directory.CreateDirectory(directory);string file=Path.Combine(directory,"ranking-history-"+id+".json");RankingHistory history=null;
+                CompanionStore.Write(Path.Combine(directory,"leaderboard-cache.json"),new CachedSnapshot{Data=snapshot,UpdatedUtc=DateTime.UtcNow});
                 try{history=CompanionStore.Json.Deserialize<RankingHistory>(File.ReadAllText(file));}catch{}
                 history=history??new RankingHistory();if(history.Record(snapshot,TimingData.Sorted(snapshot),DateTime.UtcNow))CompanionStore.Write(file,history);
             }

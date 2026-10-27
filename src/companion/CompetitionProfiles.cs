@@ -30,6 +30,7 @@ public sealed class LegacyCompetitionSettings {
     public int TimingId {get;set;}
 }
 public sealed class OverlayInstance {
+    public string Version {get;set;}
     public int Pid {get;set;}
     public string ProfileId {get;set;}
     public string Name {get;set;}

@@ -60,9 +60,9 @@ O overlay apresenta posições, nomes, voltas acumuladas, diferenças e setores 
 - Vistas completa e compacta, com número configurável de pilotos acima e abaixo.
 - Posição e transparência guardadas entre utilizações.
 - Volta atual, volta anterior opcional e volta ideal opcional, com o mesmo tamanho das linhas dos pilotos.
-- Diferencial comparado com **Recorde pessoal** (predefinição) ou **Volta anterior**. O recorde compara os setores da mesma volta.
-- Ideal pessoal calculada pela soma dos melhores setores válidos observados. A coluna opcional **Ideal observada de cada piloto** segue a mesma regra e pode não representar todo o histórico.
-- Pontos de presença obtidos pela telemetria local: verde em pista, laranja nas boxes e cinzento no paddock. Sem correspondência inequívoca, não aparece ponto.
+- Diferencial comparado com **Recorde pessoal** (predefinição) ou **Volta anterior**. A referência da classificação GTC tem prioridade sobre tempos locais, mesmo que um registo local seja mais rápido. Sem referência GTC correspondente, usa o recorde local. Os setores pertencem à mesma volta.
+- Ideal pessoal calculada pela soma dos melhores setores válidos disponíveis na GTC. Setores ausentes podem usar os registos locais como apoio. A coluna opcional **Ideal observada de cada piloto** segue a mesma regra e pode não representar todo o histórico.
+- Pontos de presença com prioridade para o estado explícito da sessão GTC: verde em pista, laranja nas boxes e cinzento no paddock. Dados remotos com mais de 30 s, flags ausentes ou sem correspondência inequívoca recorrem à telemetria local fresca; sem fonte válida, não aparece ponto.
 - Lugares ganhos/perdidos desde o início da sessão, nas últimas X horas ou desde ontem às 00:00.
 
 Verde indica melhoria, vermelho perda e roxo recordes/melhores setores. A volta ideal é identificada a roxo. Dados indisponíveis aparecem como **—**.
@@ -80,7 +80,9 @@ As combinações podem ser alteradas em **Overlay → Atalhos**. As alterações
 
 O histórico de posições é recolhido uma vez por minuto enquanto o Companion ou o overlay estiverem abertos e é conservado durante oito dias, separado por campeonato, ronda e pista. Não recupera o passado. Uma comparação por período usa o último registo anterior ao instante escolhido, com tolerância de 15 minutos; sem dados suficientes mostra **—**.
 
-As ideais usam setores de voltas válidas da classificação, da sessão GTC e da telemetria local. O overlay consulta `/livetiming/snapshot/{id}` apenas com uma vista ideal ativa, no máximo uma vez a cada 15 segundos. A análise de pilotos usa a mesma fonte quando solicitada ou com recolha em segundo plano ativa. São guardados apenas os dados desportivos necessários. Uma falha desta fonte mantém a classificação e os dados já observados.
+As ideais dão prioridade aos setores de voltas válidas da classificação e da sessão GTC, guardados numa cache separada dos recordes locais. O overlay consulta `/livetiming/snapshot/{id}` com uma vista ideal ou o estado dos pilotos ativo, no máximo uma vez a cada 15 segundos. A análise de pilotos usa a mesma fonte quando solicitada ou com recolha em segundo plano ativa. São guardados apenas os dados desportivos necessários. Uma falha desta fonte mantém os dados GTC guardados e permite o apoio local. Pistas, classes, pilotos, rondas e campeonatos não são intercambiáveis.
+
+A classificação é também recolhida pelo Companion sem exigir acesso ao servidor nem o overlay aberto. As duas respostas já usadas pela aplicação continuam a ser as únicas fontes GTC; não são consultadas novas rotas. Os dados guardados evitam novas consultas a cada interação. Preferências, instalação dos motores, telemetria da volta em curso e estimativas de saídas continuam a usar as fontes locais necessárias.
 
 As preferências e o histórico ficam, por defeito, em `%LOCALAPPDATA%\GTC-Companion`. Cada utilizador mantém o seu próprio histórico. Não partilhes a pasta de dados nem o link de entrada. A app não verifica inscrições; a organização e o servidor controlam a autorização de acesso.
 
@@ -88,7 +90,7 @@ As preferências e o histórico ficam, por defeito, em `%LOCALAPPDATA%\GTC-Compa
 
 Na página **Treino**, escolhe a duração em **voltas** ou **minutos**, o **ritmo alvo** (`m:ss,mmm`) e a **janela de consistência** em segundos para cada lado do alvo. **Iniciar stint** prepara a contagem na passagem seguinte pela meta; a volta de saída fica de fora. O treino funciona em singleplayer ou num servidor, sem precisar de classificação GTC.
 
-Em **Como configurar**, a calculadora usa **melhor volta válida × (1 + margem / 100)**. A margem de 0,5–1,0% é uma estimativa inicial ajustável, não uma regra universal. Usa uma referência representativa e confirma o alvo com 10–15 voltas nas condições de combustível, pneus e pista da corrida. O botão **Aplicar ao próximo stint** preenche o alvo, sem alterar um stint em curso. A ajuda explica a configuração, a passagem inicial pela meta e a leitura do resultado.
+Em **Como configurar**, a calculadora usa **melhor volta válida × (1 + margem / 100)**. A referência vem primeiro da classificação GTC e, na ausência dela, das voltas válidas disponíveis da sessão GTC; só depois usa o jogo e os recordes locais. A origem aparece junto da referência e pode ser editada. A margem de 0,5–1,0% é uma estimativa inicial ajustável, não uma regra universal. Usa uma referência representativa e confirma o alvo com 10–15 voltas nas condições de combustível, pneus e pista da corrida. O botão **Aplicar ao próximo stint** preenche o alvo, sem alterar um stint em curso. A ajuda explica a configuração, a passagem inicial pela meta e a leitura do resultado.
 
 O HUD de treino e o overlay de classificação têm apresentações separadas e **recordes locais partilhados**. Enquanto o Companion estiver aberto, as voltas completas e válidas observadas alimentam os recordes de tempo e setores, mesmo sem stint ativo ou com o HUD oculto. Voltas inválidas, parciais, em boxes ou com falhas de observação não melhoram os recordes. Os recordes existentes são importados sem apagar os ficheiros anteriores. A sincronização entre processos preserva as melhorias de ambos e mantém separados os setores da volta recorde e os melhores setores individuais.
 
@@ -104,13 +106,13 @@ O gráfico apresenta um ponto por volta, a linha do alvo e os limites superior/i
 
 ### Pilotos e stints
 
-**Treino → Pilotos e stints** apresenta gráficos de outros pilotos. Escolhe o **piloto**, a **sessão/origem** e **todos os stints** ou um stint específico. **Mostrar alvo do treino** usa a mesma referência e janela do teu treino, para comparar o ritmo. A seleção não altera os teus stints nem os recordes partilhados.
+**Treino → Pilotos e stints** apresenta gráficos de outros pilotos. Escolhe o **piloto**, a **sessão/origem** e **todos os stints** ou um stint específico. As sessões GTC têm prioridade na seleção automática; uma escolha manual de sessão local é respeitada. **Mostrar alvo do treino** usa a mesma referência e janela do teu treino, para comparar o ritmo. A seleção não altera os teus stints nem os recordes partilhados.
 
 - As linhas **PIT** assinalam entradas nas boxes observadas. A saída observada define o início do próximo stint. Marcas **~** indicam um limite aproximado, obtido de uma volta marcada com boxes ou de um aumento do contador de paragens entre duas leituras. Sem saída observada, a passagem continua em aberto.
 - A **média limpa** usa apenas as voltas disponíveis, válidas, completas e sem boxes. **Incluir outras voltas** mostra também as de boxes, inválidas e incompletas, assinaladas com uma cruz. Estas voltas não entram na média limpa.
 - Os números no eixo são as voltas reais da sessão. Voltas em falta ficam sem pontos e **não são interpretadas como paragens**. Passa o rato pelos pontos e marcas PIT para consultar os detalhes. **Guardar gráfico** exporta PNG.
 
-A telemetria local acompanha os carros da sessão enquanto o Companion está aberto, mesmo sem stint de treino ativo. **Atualizar GTC** consulta apenas o snapshot desportivo do campeonato selecionado, com intervalo mínimo de 15 segundos. **Recolher GTC em segundo plano** permite continuar a consulta com esta janela fechada, enquanto o Companion estiver aberto; a opção vem desativada na distribuição.
+A telemetria local acompanha os carros da sessão como fonte de apoio enquanto o Companion está aberto, mesmo sem stint de treino ativo. **Atualizar GTC** consulta apenas o snapshot desportivo do campeonato selecionado, com intervalo mínimo de 15 segundos. **Recolher GTC em segundo plano** permite continuar a consulta com esta janela fechada, enquanto o Companion estiver aberto; a opção vem ativa em novas configurações e pode ser desligada. Preferências anteriormente guardadas são respeitadas.
 
 O snapshot pode conter apenas alguns pilotos e parte das suas voltas. A app mostra a cobertura disponível e mantém os dados anteriores quando a fonte falha. Não recupera todas as sessões passadas nem inventa tempos ou paragens em falta. As sessões e campeonatos ficam separados; uma nova abertura da app inicia uma nova janela de observação local. Os registos desportivos ficam em `training/drivers` na pasta de dados deste PC e não são incluídos no ZIP distribuído.
 

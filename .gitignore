@@ -11,6 +11,8 @@ backups/
 local-data.txt
 settings.json
 cache.json
+leaderboard-cache.json
+gtc-records.json
 status.json
 personal-records.json
 positions-session.json

@@ -73,17 +73,16 @@ public sealed class LapReference {
     public double? Sector(int index){return index==0?S1:index==1?S2:S3;}
     public static bool Positive(double value){return value>0&&!double.IsNaN(value)&&!double.IsInfinity(value);}
     public static LapReference FromGame(LiveSample s){
-        if(!Positive(s.BestLap))return null;
+        if(s==null||!Positive(s.BestLap))return null;
         return new LapReference{Time=s.BestLap,S1=Positive(s.BestS1)?(double?)s.BestS1:null,
             S2=Positive(s.BestS1)&&s.BestS12>s.BestS1?(double?)(s.BestS12-s.BestS1):null,
             S3=Positive(s.BestS12)&&s.BestLap>s.BestS12?(double?)(s.BestLap-s.BestS12):null};
     }
     public static LapReference Choose(LiveSample sample,TimingRow online){
         var game=FromGame(sample);
-        if(online==null||!Positive(online.bestLapTime))return game;
+        if(!MatchesOnline(sample,online))return game;
         // These must be sectors of the same lap, not personal sector records.
-        var result=new LapReference{Time=online.bestLapTime,S1=online.s1,S2=online.s2,S3=online.s3};
-        if(game!=null && game.Time<result.Time-0.002)return game;
+        var result=new LapReference{Time=online.bestLapTime,S1=Known(online.s1),S2=Known(online.s2),S3=Known(online.s3)};
         if(game!=null && Math.Abs(game.Time-result.Time)<=0.002){
             if(!result.S1.HasValue)result.S1=game.S1;
             if(!result.S2.HasValue)result.S2=game.S2;
@@ -92,10 +91,12 @@ public sealed class LapReference {
         return result;
     }
     public static LapReference Choose(LiveSample sample,TimingRow online,PersonalRecord history){
-        var current=Choose(sample,online);if(history==null||!history.Time.HasValue||!Positive(history.Time.Value))return current;
+        var current=Choose(sample,online);if(MatchesOnline(sample,online)||history==null||!history.Time.HasValue||!Positive(history.Time.Value))return current;
         if(current!=null&&current.Time<=history.Time.Value+.0005)return current;
         return history.BestLap!=null&&Math.Abs(history.BestLap.Time-history.Time.Value)<.002?history.BestLap.Copy():new LapReference{Time=history.Time.Value};
     }
+    public static bool MatchesOnline(LiveSample sample,TimingRow online){return online!=null&&Positive(online.bestLapTime)&&(sample==null||string.IsNullOrWhiteSpace(online.driverName)||TimingData.Normalize(sample.Driver)==TimingData.Normalize(online.driverName))&&(sample==null||string.IsNullOrWhiteSpace(sample.CarClass)||string.IsNullOrWhiteSpace(online.vehicleClass)||TimingData.Normalize(sample.CarClass)==TimingData.Normalize(online.vehicleClass));}
+    static double? Known(double? value){return value.HasValue&&Positive(value.Value)?value:null;}
 }
 public sealed class LiveLapView {
     public string State="Sem telemetria";
@@ -160,7 +161,7 @@ public sealed class LiveLapModel {
     double finishAt;
     public LiveLapView Current=new LiveLapView();
     public LiveLapModel(PersonalRecordBook book=null){Book=book??new PersonalRecordBook();}
-    public LiveLapView Update(LiveSample s,TimingRow online,string expectedTrack,string expectedPlayer,bool showFinishFlash=true,bool compareToPrevious=false){
+    public LiveLapView Update(LiveSample s,TimingRow online,string expectedTrack,string expectedPlayer,bool showFinishFlash=true,bool compareToPrevious=false,PersonalRecord preferredRecords=null){
         Ideal=null;
         if(s==null)return Current=new LiveLapView();
         if(TimingData.Normalize(s.Track)!=TimingData.Normalize(expectedTrack))return Current=new LiveLapView{State="Outra pista"};
@@ -181,13 +182,15 @@ public sealed class LiveLapModel {
                 if(LastCompleted==null&&s.Laps>0&&LapReference.Positive(s.LastLap)){LastCompleted=BuildFinished(s,null,null,null);Book.Merge(record,LastLap(s),true);}
             }
             Book.Merge(record,LapReference.FromGame(s));
-            if(online!=null)Book.Merge(record,new LapReference{Time=online.bestLapTime,S1=online.s1,S2=online.s2,S3=online.s3});
+            if(LapReference.MatchesOnline(s,online))Book.Merge(record,new LapReference{Time=online.bestLapTime,S1=online.s1,S2=online.s2,S3=online.s3});
             lapStart=s.LapStart;completedLaps=s.Laps;
             reference=LapReference.Choose(s,online,record);
-            previous=record.Previous==null?null:record.Previous.Copy();records=record.Copy();
+            previous=record.Previous==null?null:record.Previous.Copy();records=(preferredRecords??record).Copy();
             validLap=s.CountLapFlag==2&&!s.InPits&&s.Distance>=0;
         }
-        Ideal=BuildIdeal(Book.Get(s));
+        if(!next&&LapReference.MatchesOnline(s,online))reference=LapReference.Choose(s,online);
+        if(preferredRecords!=null)records=preferredRecords.Copy();
+        Ideal=BuildIdeal(preferredRecords??Book.Get(s));
         if(LastCompleted!=null){LastCompleted.Reference=reference;LastCompleted.CompareToPrevious=compareToPrevious;Compare(LastCompleted);}
         if(s.InPits||s.CountLapFlag!=2)validLap=false;
         if(!s.Realtime || s.InPits || s.Distance<0){

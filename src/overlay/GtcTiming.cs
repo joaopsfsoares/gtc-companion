@@ -74,7 +74,7 @@ public sealed partial class TimingOverlay : Form {
     public TimingOverlay(bool independent) {
         standalone = independent;
         settings = Read<Preferences>("settings.json") ?? new Preferences();
-        lapModel=new LiveLapModel(Read<PersonalRecordBook>("personal-records.json"));recordRepository=new PersonalRecordRepository(Environment.GetEnvironmentVariable("GTC_COMPANION_DATA")??Root,Environment.GetEnvironmentVariable("GTC_COMPANION_DATA")!=null);SynchronizeRecords(true);driverIdeals=new DriverIdeals(lapModel.Book);
+        lapModel=new LiveLapModel(Read<PersonalRecordBook>("personal-records.json"));recordRepository=new PersonalRecordRepository(Environment.GetEnvironmentVariable("GTC_COMPANION_DATA")??Root,Environment.GetEnvironmentVariable("GTC_COMPANION_DATA")!=null);SynchronizeRecords(true);driverIdeals=new DriverIdeals(lapModel.Book,Read<GtcRecordCache>("gtc-records.json"));
         positions=Read<SessionPositions>("positions-session.json")??new SessionPositions();
         rankingHistory=Read<RankingHistory>(HistoryFile)??new RankingHistory();
         if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("GTC_TIMING_DRIVER"))) settings.Player = Environment.GetEnvironmentVariable("GTC_TIMING_DRIVER");
@@ -125,7 +125,7 @@ public sealed partial class TimingOverlay : Form {
         try { var file = DataFile(name); var temp = file + ".tmp"; File.WriteAllText(temp,json.Serialize(value),new UTF8Encoding(false)); if(File.Exists(file)) File.Replace(temp,file,null); else File.Move(temp,file); } catch { }
     }
     void LoadCache() {
-        var cache = Read<CachedSnapshot>("cache.json");
+        var cache = new[]{Read<CachedSnapshot>("cache.json"),Read<CachedSnapshot>("leaderboard-cache.json")}.Where(c=>c!=null&&c.Data!=null&&c.Data.activeRound!=null&&c.Data.rows!=null).OrderByDescending(c=>c.UpdatedUtc).FirstOrDefault();
         if (cache == null || cache.Data == null) return;
         snapshot = cache.Data; rows = TimingData.Sorted(snapshot); updatedUtc = cache.UpdatedUtc;
     }
@@ -141,7 +141,7 @@ public sealed partial class TimingOverlay : Form {
                 if (next == null || next.activeRound == null || string.IsNullOrWhiteSpace(next.activeRound.trackName) || next.rows == null)
                     throw new InvalidDataException("Resposta sem classificação");
                 if(snapshot == null || snapshot.activeRound == null || snapshot.activeRound.id != next.activeRound.id) offset = 0;
-                int recordRevision=lapModel.Book.Revision;driverIdeals.ObserveLeaderboard(next);if(lapModel.Book.Revision!=recordRevision)SynchronizeRecords(true);
+                int recordRevision=lapModel.Book.Revision;driverIdeals.ObserveLeaderboard(next);Write("gtc-records.json",driverIdeals.Online);if(lapModel.Book.Revision!=recordRevision)SynchronizeRecords(true);
                 snapshot = next; rows = TimingData.Sorted(next); updatedUtc = DateTime.UtcNow; failed = false; error = "";
                 if(positions.UpdateRanks(rows,next.activeRound.id))positionsDirty=true;
                 rankingHistory=Read<RankingHistory>(HistoryFile)??rankingHistory;
@@ -154,7 +154,7 @@ public sealed partial class TimingOverlay : Form {
         finally { busy = false; if(!IsDisposed) { ResizeOverlay(); Invalidate(); } }
     }
     async Task RefreshRemoteIdeals(){
-        if(!(settings.ShowIdealLap||settings.ShowDriverIdealLaps)||DateTime.UtcNow<nextRemoteIdeal)return;
+        if(!(settings.ShowIdealLap||settings.ShowDriverIdealLaps||settings.ShowDriverActivity)||DateTime.UtcNow<nextRemoteIdeal)return;
         nextRemoteIdeal=DateTime.UtcNow.AddSeconds(15);
         try{
             string endpoint="https://api.gtcracecenter.com/livetiming/snapshot/"+(Environment.GetEnvironmentVariable("GTC_TIMING_ID")??"110");
@@ -163,7 +163,7 @@ public sealed partial class TimingOverlay : Form {
                 using(var source=await response.Content.ReadAsStreamAsync())using(var memory=new MemoryStream()){
                     var buffer=new byte[16384];int count;using(var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(8))){while((count=await source.ReadAsync(buffer,0,buffer.Length,timeout.Token))>0){if(memory.Length+count>2000000)throw new InvalidDataException();memory.Write(buffer,0,count);}}
                     var remote=json.Deserialize<RemoteLapSnapshot>(Encoding.UTF8.GetString(memory.ToArray()));int revision=lapModel.Book.Revision;
-                    driverIdeals.ObserveRemote(remote,snapshot.activeRound.trackName);if(lapModel.Book.Revision!=revision)SynchronizeRecords(true);remoteIdealError="";
+                    driverIdeals.ObserveRemote(remote,snapshot.activeRound.trackName);Write("gtc-records.json",driverIdeals.Online);if(lapModel.Book.Revision!=revision)SynchronizeRecords(true);remoteIdealError="";
                 }
             }
         }catch(Exception){remoteIdealError="Histórico remoto indisponível; mantidos os setores já observados.";}
@@ -184,7 +184,7 @@ public sealed partial class TimingOverlay : Form {
         if(userHidden){userHidden=false;Show();} Invalidate();
     }
     List<int> Indexes() { return TimingData.VisibleIndexes(rows,settings.Player,settings.Compact,offset,settings.PilotsAbove,settings.PilotsBelow); }
-    LiveLapView PersonalIdeal(){return lapModel.Ideal??driverIdeals.Find(rows.FirstOrDefault(row=>TimingData.Normalize(row.driverName)==TimingData.Normalize(settings.Player)),snapshot==null||snapshot.activeRound==null?"":snapshot.activeRound.trackName);}
+    LiveLapView PersonalIdeal(){return driverIdeals.Find(rows.FirstOrDefault(row=>TimingData.Normalize(row.driverName)==TimingData.Normalize(settings.Player)),snapshot==null||snapshot.activeRound==null?"":snapshot.activeRound.trackName)??lapModel.Ideal;}
     void UpdateLive() {
         SynchronizeRecords();
         var sample=scoring.Read();
@@ -193,7 +193,7 @@ public sealed partial class TimingOverlay : Form {
         string track=snapshot==null||snapshot.activeRound==null?"":snapshot.activeRound.trackName;
         int revision=lapModel.Book.Revision;
         driverIdeals.ObserveLocal(scoring.Activity,track,settings.Player,DateTime.UtcNow);
-        live=lapModel.Update(sample,personal,track,settings.Player,false,settings.LapComparison==1);
+        live=lapModel.Update(sample,personal,track,settings.Player,false,settings.LapComparison==1,driverIdeals.PreferredRecord(personal,track));
         if(lapModel.Book.Revision!=revision)SynchronizeRecords(true);
         Invalidate();
     }
@@ -333,7 +333,7 @@ public sealed partial class TimingOverlay : Form {
                 Label(g,movement,48,y,34,11,!change.HasValue||change==0?Muted:change>0?Green:Red,true,true);
             }
             float activitySpace=settings.ShowDriverActivity?11:0;
-            if(settings.ShowDriverActivity){var presence=scoring.Activity==null?DriverPresence.Unknown:scoring.Activity.Find(row,snapshot==null||snapshot.activeRound==null?"":snapshot.activeRound.trackName,DateTime.UtcNow);if(presence!=DriverPresence.Unknown)using(var dot=new SolidBrush(presence==DriverPresence.OnTrack?Green:presence==DriverPresence.InPits?GtcOrange:Muted))g.FillEllipse(dot,nameX,y+10,6,6);}
+            if(settings.ShowDriverActivity){var presence=driverIdeals.Presence(row,snapshot==null||snapshot.activeRound==null?"":snapshot.activeRound.trackName,scoring.Activity,DateTime.UtcNow);if(presence!=DriverPresence.Unknown)using(var dot=new SolidBrush(presence==DriverPresence.OnTrack?Green:presence==DriverPresence.InPits?GtcOrange:Muted))g.FillEllipse(dot,nameX,y+10,6,6);}
             Label(g,row.driverName,nameX+activitySpace,y,nameWidth-activitySpace,14,c,mine);
             Label(g,TimingData.LapCount(row.lapsAccumulated),230,y,48,13,c,false,true);
             Label(g,TimingData.Lap(row.bestLapTime),286,y,88,14,c,true,true);
@@ -467,8 +467,8 @@ public sealed partial class TimingOverlay : Form {
         s.SessionTime=149.9;s.Sector=0;s.CurrentS12=49.9;v=update();
         if(Math.Abs(v.Sectors[1].Value-29.7)>.00001||Math.Abs(v.Deltas[1].Value+.8)>.00001||Math.Abs(v.Gap.Value+.7)>.00001||!v.SectorRecords[1])throw new Exception("S2 cumulativo, anterior e recorde pessoal");
         s.SessionTime=190;s.LapStart=190;s.Laps=11;s.Sector=1;s.CurrentS1=-1;s.CurrentS12=-1;s.LastS1=20.2;s.LastS12=49.9;s.LastLap=89.9;s.BestLap=89.9;s.BestS1=20.2;s.BestS12=49.9;v=update();
-        if(!v.Finished||v.State!=""||Math.Abs(v.Gap.Value+1.1)>.00001||!v.LapRecord||Math.Abs(v.Reference.Time-89.9)>.0001||Math.Abs(v.Sectors[2].Value-40)>.00001)throw new Exception("Fim da volta bate recorde e compara com anterior");
-        s.SessionTime=194;v=update();if(v.Finished||Math.Abs(v.Reference.Time-89.9)>.00001||v.Gap.HasValue)throw new Exception("Nova melhor volta entra na referência seguinte");
+        if(!v.Finished||v.State!=""||Math.Abs(v.Gap.Value+1.1)>.00001||!v.LapRecord||Math.Abs(v.Reference.Time-90)>.0001||Math.Abs(v.Sectors[2].Value-40)>.00001)throw new Exception("Fim da volta bate recorde e preserva a referência GTC prioritária");
+        s.SessionTime=194;v=update();if(v.Finished||Math.Abs(v.Reference.Time-90)>.00001||v.Gap.HasValue)throw new Exception("Recorde local não substitui a referência GTC");
         s.CountLapFlag=1;s.Sector=2;s.CurrentS1=20.1;s.SessionTime=210.1;v=update();if(v.Valid||v.Gap.HasValue||v.Deltas[0].HasValue)throw new Exception("Não comparar voltas inválidas");
         if(model.Update(s,pb,"Outra pista",s.Driver).Elapsed.HasValue)throw new Exception("Referência de pista errada");
         s.InPits=true;v=update();if(v.Elapsed.HasValue||v.State!="Nas boxes")throw new Exception("Tempo não corre nas boxes");

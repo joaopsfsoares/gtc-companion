@@ -9,7 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 
-public sealed class DriverAnalysisOptions {public bool BackgroundGtc {get;set;}}
+public sealed class DriverAnalysisOptions {public bool BackgroundGtc {get;set;}public DriverAnalysisOptions(){BackgroundGtc=true;}}
 public sealed class DriverHistoryService:IDisposable {
     public readonly DriverHistoryCollector Collector=new DriverHistoryCollector();
     readonly HttpClient client;

@@ -21,7 +21,7 @@ public sealed class DriverHistoryCollector {
             if(state.Last!=null&&s.SessionTime-state.Last.SessionTime>3)state.Full=false;
             if(state.Last!=null&&Math.Abs(s.LapStart-state.Last.LapStart)>.05){
                 int delta=s.Laps-state.Last.Laps;double duration=s.LapStart-state.Last.LapStart;
-                if(delta==1&&TrainingMath.Positive(s.LastLap))record.Put(new DriverLapPoint{Number=s.Laps,Time=s.LastLap,Valid=state.Full?(bool?)state.Valid:null,Pit=state.Pit?(bool?)true:state.Full?(bool?)false:null,Complete=state.Full,AtUtc=now,S1=s.LastS1>0?(double?)s.LastS1:null,S2=s.LastS12>s.LastS1?(double?)(s.LastS12-s.LastS1):null,S3=s.LastLap>s.LastS12?(double?)(s.LastLap-s.LastS12):null});
+                if(delta==1&&TrainingMath.Positive(s.LastLap))record.Put(new DriverLapPoint{Number=s.Laps,Time=s.LastLap,Valid=state.Full?(bool?)state.Valid:null,Pit=state.Pit?(bool?)true:state.Full?(bool?)false:null,Complete=state.Full,AtUtc=now,S1=s.LastS1>0?(double?)s.LastS1:null,S2=s.LastS1>0&&s.LastS12>s.LastS1?(double?)(s.LastS12-s.LastS1):null,S3=s.LastS12>0&&s.LastLap>s.LastS12?(double?)(s.LastLap-s.LastS12):null});
                 else if(delta==1&&duration>=10)record.Put(new DriverLapPoint{Number=s.Laps,Time=duration,Valid=false,Pit=state.Pit,Complete=state.Full,AtUtc=now});
                 state.Full=s.SessionTime-s.LapStart<=1;state.Valid=s.CountLapFlag==2;state.Pit=s.InPits;
             }

@@ -25,6 +25,9 @@ public sealed class TrainingLap {
     public bool Valid {get;set;}
     public bool CompleteData {get;set;}
     public int OffTracks {get;set;}
+    public double? S1 {get;set;}
+    public double? S2 {get;set;}
+    public double? S3 {get;set;}
 }
 public sealed class TrainingRun {
     public string Id {get;set;}
@@ -34,6 +37,7 @@ public sealed class TrainingRun {
     public string Driver {get;set;}
     public string State {get;set;}
     public string Reason {get;set;}
+    public string RecoveryNote {get;set;}
     public DateTime CreatedUtc {get;set;}
     public DateTime? FinishedUtc {get;set;}
     public List<TrainingLap> Laps {get;set;}
@@ -42,11 +46,12 @@ public sealed class TrainingRun {
     public bool HadTelemetryGap {get;set;}
     public TrainingRun(){Laps=new List<TrainingLap>();State="armed";}
     public double? Average {get{return Laps.Count==0?(double?)null:Laps.Average(x=>x.Time);}}
-    public int InWindow {get{return Laps.Count(x=>Math.Abs(x.Time-Options.Target)<=Options.Tolerance+.000001);}}
+    public int InWindow {get{return Laps.Count(x=>TrainingMath.WithinWindow(x.Time,Options.Target,Options.Tolerance));}}
     public bool Active {get{return State=="armed"||State=="running";}}
 }
 public static class TrainingMath {
     public static bool Positive(double x){return x>0&&!double.IsNaN(x)&&!double.IsInfinity(x);}
+    public static bool WithinWindow(double time,double target,double tolerance){return Math.Abs(time-target)<=tolerance+.000001;}
     public static double RacePace(double best,double marginPercent){if(!Positive(best)||best<10||best>1800||double.IsNaN(marginPercent)||marginPercent<0||marginPercent>10)throw new ArgumentException("Indica uma volta válida e uma margem entre 0 e 10%.");double pace=best*(1+marginPercent/100);if(pace>1800)throw new ArgumentException("O alvo calculado excede 30 minutos.");return pace;}
     public static bool ParsePace(string value,out double seconds){
         seconds=0;string[] fields=(value??"").Trim().Replace(',','.').Split(':');double tail;int minutes;
@@ -64,13 +69,13 @@ public sealed class TrainingModel {
     public int Revision {get;private set;}
     LiveSample previous;
     string identity;
-    double started,lastTime,lapStart,outSince=-1,inSince=-1;
+    double started,lastTime,lapStart,outSince=-1,inSince=-1,inactiveAt=-1;
     bool valid,completeData,offTrack;
     int lapCounter,lapOffTracks;
     static string Identity(LiveSample sample){return sample.Track+"|"+sample.Car+"|"+sample.Driver+"|"+sample.Session+"|"+sample.Slot;}
     public void Arm(TrainingOptions options){
         options.Validate();if(Run!=null&&Run.Active)throw new InvalidOperationException("Termina o stint atual antes de começar outro.");
-        Run=new TrainingRun{Id=Guid.NewGuid().ToString("N"),Options=options.Copy(),CreatedUtc=DateTime.UtcNow};previous=null;identity=null;outSince=inSince=-1;offTrack=false;Revision++;Notice="A aguardar a próxima passagem pela meta. A volta de saída não conta.";
+        Run=new TrainingRun{Id=Guid.NewGuid().ToString("N"),Options=options.Copy(),CreatedUtc=DateTime.UtcNow};previous=null;identity=null;outSince=inSince=inactiveAt=-1;offTrack=false;Revision++;Notice="A aguardar a próxima passagem pela meta. A volta de saída não conta.";
     }
     public void Update(LiveSample sample){
         if(Run==null||!Run.Active)return;
@@ -78,12 +83,16 @@ public sealed class TrainingModel {
         if(!TrainingMath.Positive(sample.SessionTime)||double.IsNaN(sample.LapStart)||double.IsInfinity(sample.LapStart))return;
         string key=Identity(sample);
         if(Run.State=="armed"){
-            if(previous!=null&&Identity(previous)==key&&sample.Realtime&&!sample.InPits&&sample.Distance>=0&&sample.Laps==previous.Laps+1&&sample.LapStart>previous.LapStart+.05){
+            if(previous!=null&&Identity(previous)==key&&sample.Realtime&&!sample.InPits&&sample.Laps==previous.Laps+1&&sample.LapStart>previous.LapStart+.05){
                 Run.State="running";Run.Track=sample.Track;Run.Car=sample.Car;Run.Driver=sample.Driver;identity=key;started=sample.LapStart;lapStart=sample.LapStart;lapCounter=sample.Laps;lastTime=sample.SessionTime;valid=sample.CountLapFlag==2;completeData=true;lapOffTracks=0;Revision++;Notice="Stint em curso.";
             }else{previous=sample;return;}
         }
         if(identity!=key||sample.SessionTime<lastTime-.5){Stop("Sessão, pista ou carro alterados.",true);return;}
-        if(!sample.Realtime||sample.InPits||sample.Distance<0){Stop(sample.InPits?"Regresso às boxes.":"Condução interrompida.",true);return;}
+        if(sample.InPits){Stop("Regresso às boxes.",true);return;}
+        // Negative lap distance can occur at the timing line. A realtime flag
+        // drop pauses collection; neither condition proves that the stint ended.
+        if(!sample.Realtime){if(inactiveAt<0)inactiveAt=sample.SessionTime;Notice="Treino em pausa · a aguardar condução.";return;}
+        double pauseAfterLine=0;if(inactiveAt>=0){double pause=sample.SessionTime-inactiveAt;if(pause>1){pauseAfterLine=Math.Max(0,sample.SessionTime-Math.Max(inactiveAt,sample.LapStart));started+=pause;}inactiveAt=-1;}
         if(sample.SessionTime-lastTime>3){completeData=false;Run.HadTelemetryGap=true;}
         if(Math.Abs(sample.LapStart-lapStart)>.05){
             double duration=sample.LapStart-lapStart;int countDelta=sample.Laps-lapCounter;
@@ -92,7 +101,7 @@ public sealed class TrainingModel {
             // Invalidated laps can have no official LastLap, or retain an older
             // lap time. The two observed line crossings still give their duration.
             bool gameTimed=valid&&TrainingMath.Positive(sample.LastLap)&&Math.Abs(sample.LastLap-duration)<.25;
-            Run.Laps.Add(new TrainingLap{Number=Run.Laps.Count+1,Time=gameTimed?sample.LastLap:duration,Valid=valid&&gameTimed,CompleteData=completeData,OffTracks=lapOffTracks});Run.Elapsed=Math.Max(0,sample.LapStart-started);Revision++;
+            var lap=new TrainingLap{Number=Run.Laps.Count+1,Time=gameTimed?sample.LastLap:duration,Valid=valid&&gameTimed,CompleteData=completeData,OffTracks=lapOffTracks};DriverLapAnalysis.CaptureSectors(lap,sample,gameTimed);Run.Laps.Add(lap);Run.Elapsed=Math.Max(0,sample.LapStart-started+pauseAfterLine);Revision++;
             if((!Run.Options.Minutes&&Run.Laps.Count>=Run.Options.Amount)||(Run.Options.Minutes&&Run.Elapsed>=Run.Options.Amount*60-.001)){Finish("completed","Objetivo de duração concluído.");return;}
             lapCounter=sample.Laps;lapStart=sample.LapStart;valid=sample.CountLapFlag==2;completeData=sample.SessionTime-sample.LapStart<=3;lapOffTracks=0;
         }else if(sample.Laps!=lapCounter){Stop("Contador de voltas alterado.",true);return;}

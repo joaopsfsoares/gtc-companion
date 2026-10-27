@@ -28,11 +28,12 @@ public sealed class TrainingHud:Form {
         if(Run==null)return;
         if(Run.State=="armed"){text("A aguardar passagem pela meta",14,36,18,GtcTheme.Text,true);text("A volta de saída não conta.",14,77,11,GtcTheme.Muted,false);text("Alvo "+TimingData.Lap(Run.Options.Target)+" · "+Run.Options.Amount+(Run.Options.Minutes?" minutos":" voltas"),14,113,12,GtcTheme.Accent,true);return;}
         string count=Run.Options.Minutes?Run.Laps.Count+" voltas · "+TrainingMath.Remaining(Run):Run.Laps.Count+" / "+Run.Options.Amount+" voltas · "+TrainingMath.Remaining(Run);
-        text(Run.Active?count:Run.State=="completed"?"STINT CONCLUÍDO":"STINT TERMINADO",14,34,13,GtcTheme.Text,true);
+        text(Run.Active?count:(Run.State=="completed"?"OBJETIVO CONCLUÍDO":Run.State=="interrupted"?"STINT INTERROMPIDO":"TERMINADO MANUALMENTE")+" · "+Run.Laps.Count+" voltas",14,34,13,Run.State=="interrupted"?GtcTheme.Accent:GtcTheme.Text,true);
         text("Média "+TrainingMath.Lap(Run.Average),14,59,20,GtcTheme.Text,true);
-        if(Run.Average.HasValue)text(TrainingMath.Delta(Run.Average.Value-Run.Options.Target),325,65,14,Run.Average.Value<=Run.Options.Target?Color.FromArgb(83,218,154):Color.FromArgb(255,112,126),true);
-        var last=Run.Laps.LastOrDefault();if(last!=null)text("Última "+TimingData.Lap(last.Time)+"  "+TrainingMath.Delta(last.Time-Run.Options.Target),14,94,12,last.Time<=Run.Options.Target?Color.FromArgb(83,218,154):Color.FromArgb(255,112,126),false);
+        if(Run.Average.HasValue)text(TrainingMath.Delta(Run.Average.Value-Run.Options.Target),325,65,14,AnalysisLegend.Point(true,Run.Average.Value,Run.Options.Target,Run.Options.Tolerance),true);
+        var last=Run.Laps.LastOrDefault();if(last!=null)text("Última "+TimingData.Lap(last.Time)+"  "+TrainingMath.Delta(last.Time-Run.Options.Target),14,94,12,AnalysisLegend.Point(last.Valid&&last.CompleteData,last.Time,Run.Options.Target,Run.Options.Tolerance),false);
         text("Alvo "+TimingData.Lap(Run.Options.Target)+"  ·  Na janela "+Run.InWindow+"/"+Run.Laps.Count+"  ·  Saídas* "+Run.OffTracks,14,123,11,GtcTheme.Muted,false);
         if(Run.Active&&Notice!=null&&Notice.StartsWith("A aguardar telemetria"))text("Sem telemetria",335,10,10,Color.FromArgb(255,112,126),true);
+        if(Run.Active&&Notice!=null&&Notice.StartsWith("Treino em pausa"))text("EM PAUSA",365,10,10,GtcTheme.Accent,true);
     }
 }

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 GTC Companion contributors.
+// Copyright (C) 2026 GTC Companion contributors.
 // This file is part of GTC Companion.
 // GTC Companion is free software: you can redistribute it and/or modify it
 // under the terms of the GNU General Public License, version 3, as published
@@ -36,6 +36,9 @@ public sealed partial class TimingOverlay : Form {
     readonly Rf2ScoringReader scoring = new Rf2ScoringReader();
     readonly LiveLapModel lapModel;
     readonly DriverIdeals driverIdeals;
+    readonly PersonalRecordRepository recordRepository;
+    DateTime nextRecordSync=DateTime.MinValue;
+    int storedRecordRevision=-1;
     DateTime nextRemoteIdeal=DateTime.MinValue;
     string remoteIdealError="";
     int PanelWidth{get{return settings.ShowDriverIdealLaps?792:696;}}
@@ -71,7 +74,7 @@ public sealed partial class TimingOverlay : Form {
     public TimingOverlay(bool independent) {
         standalone = independent;
         settings = Read<Preferences>("settings.json") ?? new Preferences();
-        lapModel=new LiveLapModel(Read<PersonalRecordBook>("personal-records.json"));driverIdeals=new DriverIdeals(lapModel.Book);
+        lapModel=new LiveLapModel(Read<PersonalRecordBook>("personal-records.json"));recordRepository=new PersonalRecordRepository(Environment.GetEnvironmentVariable("GTC_COMPANION_DATA")??Root,Environment.GetEnvironmentVariable("GTC_COMPANION_DATA")!=null);SynchronizeRecords(true);driverIdeals=new DriverIdeals(lapModel.Book);
         positions=Read<SessionPositions>("positions-session.json")??new SessionPositions();
         rankingHistory=Read<RankingHistory>(HistoryFile)??new RankingHistory();
         if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("GTC_TIMING_DRIVER"))) settings.Player = Environment.GetEnvironmentVariable("GTC_TIMING_DRIVER");
@@ -113,7 +116,7 @@ public sealed partial class TimingOverlay : Form {
         liveTimer.Tick += (s,e) => {ApplyCommands();UpdateLive();};
         Shown += async (s,e) => { RegisterKeys(); poll.Start(); lifecycle.Start(); liveTimer.Start(); await RefreshData(); };
         FormClosing+=(s,e)=>{if(dragging)FinishMove();};
-        FormClosed += (s,e) => { poll.Stop(); lifecycle.Stop(); liveTimer.Stop(); scoring.Dispose(); if(settingsDialog!=null)settingsDialog.Close(); SaveSettings(); Write("positions-session.json",positions); if(shortcutRegistration!=null)shortcutRegistration.Dispose();tray.Dispose(); http.Dispose(); };
+        FormClosed += (s,e) => { poll.Stop(); lifecycle.Stop(); liveTimer.Stop(); scoring.Dispose();SynchronizeRecords(true);recordRepository.Dispose(); if(settingsDialog!=null)settingsDialog.Close(); SaveSettings(); Write("positions-session.json",positions); if(shortcutRegistration!=null)shortcutRegistration.Dispose();tray.Dispose(); http.Dispose(); };
     }
     T Read<T>(string name) where T : class {
         try { return json.Deserialize<T>(File.ReadAllText(DataFile(name))); } catch { return null; }
@@ -127,6 +130,7 @@ public sealed partial class TimingOverlay : Form {
         snapshot = cache.Data; rows = TimingData.Sorted(snapshot); updatedUtc = cache.UpdatedUtc;
     }
     void SaveSettings() { Write("settings.json",settings); }
+    void SynchronizeRecords(bool force=false){if(!force&&DateTime.UtcNow<nextRecordSync&&lapModel.Book.Revision==storedRecordRevision)return;nextRecordSync=DateTime.UtcNow.AddSeconds(1);if(recordRepository.Synchronize(lapModel.Book))storedRecordRevision=lapModel.Book.Revision;}
     async Task RefreshData() {
         if (busy || IsDisposed) return;
         busy = true;
@@ -137,7 +141,7 @@ public sealed partial class TimingOverlay : Form {
                 if (next == null || next.activeRound == null || string.IsNullOrWhiteSpace(next.activeRound.trackName) || next.rows == null)
                     throw new InvalidDataException("Resposta sem classificação");
                 if(snapshot == null || snapshot.activeRound == null || snapshot.activeRound.id != next.activeRound.id) offset = 0;
-                int recordRevision=lapModel.Book.Revision;driverIdeals.ObserveLeaderboard(next);if(lapModel.Book.Revision!=recordRevision)Write("personal-records.json",lapModel.Book);
+                int recordRevision=lapModel.Book.Revision;driverIdeals.ObserveLeaderboard(next);if(lapModel.Book.Revision!=recordRevision)SynchronizeRecords(true);
                 snapshot = next; rows = TimingData.Sorted(next); updatedUtc = DateTime.UtcNow; failed = false; error = "";
                 if(positions.UpdateRanks(rows,next.activeRound.id))positionsDirty=true;
                 rankingHistory=Read<RankingHistory>(HistoryFile)??rankingHistory;
@@ -159,7 +163,7 @@ public sealed partial class TimingOverlay : Form {
                 using(var source=await response.Content.ReadAsStreamAsync())using(var memory=new MemoryStream()){
                     var buffer=new byte[16384];int count;using(var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(8))){while((count=await source.ReadAsync(buffer,0,buffer.Length,timeout.Token))>0){if(memory.Length+count>2000000)throw new InvalidDataException();memory.Write(buffer,0,count);}}
                     var remote=json.Deserialize<RemoteLapSnapshot>(Encoding.UTF8.GetString(memory.ToArray()));int revision=lapModel.Book.Revision;
-                    driverIdeals.ObserveRemote(remote,snapshot.activeRound.trackName);if(lapModel.Book.Revision!=revision)Write("personal-records.json",lapModel.Book);remoteIdealError="";
+                    driverIdeals.ObserveRemote(remote,snapshot.activeRound.trackName);if(lapModel.Book.Revision!=revision)SynchronizeRecords(true);remoteIdealError="";
                 }
             }
         }catch(Exception){remoteIdealError="Histórico remoto indisponível; mantidos os setores já observados.";}
@@ -182,6 +186,7 @@ public sealed partial class TimingOverlay : Form {
     List<int> Indexes() { return TimingData.VisibleIndexes(rows,settings.Player,settings.Compact,offset,settings.PilotsAbove,settings.PilotsBelow); }
     LiveLapView PersonalIdeal(){return lapModel.Ideal??driverIdeals.Find(rows.FirstOrDefault(row=>TimingData.Normalize(row.driverName)==TimingData.Normalize(settings.Player)),snapshot==null||snapshot.activeRound==null?"":snapshot.activeRound.trackName);}
     void UpdateLive() {
+        SynchronizeRecords();
         var sample=scoring.Read();
         if(positions.ObserveSession(sample,gameRun))positionsDirty=true;
         var personal=rows.FirstOrDefault(r=>TimingData.Normalize(r.driverName)==TimingData.Normalize(settings.Player));
@@ -189,7 +194,7 @@ public sealed partial class TimingOverlay : Form {
         int revision=lapModel.Book.Revision;
         driverIdeals.ObserveLocal(scoring.Activity,track,settings.Player,DateTime.UtcNow);
         live=lapModel.Update(sample,personal,track,settings.Player,false,settings.LapComparison==1);
-        if(lapModel.Book.Revision!=revision)Write("personal-records.json",lapModel.Book);
+        if(lapModel.Book.Revision!=revision)SynchronizeRecords(true);
         Invalidate();
     }
     void ResizeOverlay() {

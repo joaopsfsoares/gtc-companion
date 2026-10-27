@@ -47,6 +47,7 @@ public sealed class TrainingRun {
 }
 public static class TrainingMath {
     public static bool Positive(double x){return x>0&&!double.IsNaN(x)&&!double.IsInfinity(x);}
+    public static double RacePace(double best,double marginPercent){if(!Positive(best)||best<10||best>1800||double.IsNaN(marginPercent)||marginPercent<0||marginPercent>10)throw new ArgumentException("Indica uma volta válida e uma margem entre 0 e 10%.");double pace=best*(1+marginPercent/100);if(pace>1800)throw new ArgumentException("O alvo calculado excede 30 minutos.");return pace;}
     public static bool ParsePace(string value,out double seconds){
         seconds=0;string[] fields=(value??"").Trim().Replace(',','.').Split(':');double tail;int minutes;
         if(fields.Length!=2||!int.TryParse(fields[0],NumberStyles.None,CultureInfo.InvariantCulture,out minutes)||!double.TryParse(fields[1],NumberStyles.AllowDecimalPoint,CultureInfo.InvariantCulture,out tail)||tail<0||tail>=60)return false;

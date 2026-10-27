@@ -119,6 +119,7 @@ public sealed class PersonalRecord {
     public double? S2 { get; set; }
     public double? S3 { get; set; }
     public LapReference Previous { get; set; }
+    public DateTime PreviousAtUtc {get;set;}
     public LapReference BestLap {get;set;}
     public double? Sector(int i){return i==0?S1:i==1?S2:S3;}
     public PersonalRecord Copy(){return new PersonalRecord{Key=Key,Time=Time,S1=S1,S2=S2,S3=S3,BestLap=BestLap==null?null:BestLap.Copy()};}
@@ -141,7 +142,7 @@ public sealed class PersonalRecordBook {
     }
     public void Merge(PersonalRecord record,LapReference lap,bool previous=false){
         if(record.Merge(lap))Revision++;
-        if(previous&&lap!=null){record.Previous=lap.Copy();Revision++;}
+        if(previous&&lap!=null){record.Previous=lap.Copy();record.PreviousAtUtc=DateTime.UtcNow;Revision++;}
     }
 }
 public sealed class LiveLapModel {

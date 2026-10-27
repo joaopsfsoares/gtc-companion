@@ -8,6 +8,10 @@ using System.Windows.Forms;
 
 public sealed partial class CompanionWindow {
     readonly TrainingModel training=new TrainingModel();
+    readonly TrainingRecordCollector trainingRecords=new TrainingRecordCollector();
+    PersonalRecordRepository trainingRepository;
+    DateTime nextTrainingRecordSync=DateTime.MinValue;
+    int storedTrainingRecordRevision=-1;
     readonly Rf2ScoringReader trainingReader=new Rf2ScoringReader();
     readonly System.Windows.Forms.Timer trainingTimer=new System.Windows.Forms.Timer{Interval=200};
     TrainingOptions trainingOptions;
@@ -26,12 +30,14 @@ public sealed partial class CompanionWindow {
         foreach(Control control in page.Controls.Cast<Control>().ToArray())control.Dispose();page.AutoScroll=false;
         trainingOptions=CompanionStore.Read<TrainingOptions>(Path.Combine("training","options.json"))??new TrainingOptions();try{trainingOptions.Validate();}catch{trainingOptions=new TrainingOptions();}
         training.Restore(TrainingStore.History().FirstOrDefault());
+        trainingRepository=new PersonalRecordRepository(CompanionStore.Root);trainingRepository.Synchronize(trainingRecords.Book);
         var root=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=7,Margin=Padding.Empty};root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));for(int row=0;row<6;row++)root.RowStyles.Add(new RowStyle(SizeType.AutoSize));root.RowStyles.Add(new RowStyle(SizeType.Percent,100));page.Controls.Add(root);
-        var title=TextLabel("Treino de ritmo",19,true);title.Margin=new Padding(0,0,0,P(12));root.Controls.Add(title,0,0);
+        var titleRow=new TableLayoutPanel{Dock=DockStyle.Top,AutoSize=true,ColumnCount=2,Margin=new Padding(0,0,0,P(12))};titleRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));titleRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));var title=TextLabel("Treino de ritmo",19,true);titleRow.Controls.Add(title,0,0);var help=new LinkLabel{Text="Como configurar",AutoSize=true,Font=F(11),LinkColor=GtcTheme.Accent,VisitedLinkColor=GtcTheme.Accent,ActiveLinkColor=GtcTheme.Text,Margin=new Padding(0,P(8),0,0),AccessibleName="Como calcular o ritmo de corrida e configurar o stint"};titleRow.Controls.Add(help,1,0);root.Controls.Add(titleRow,0,0);
         var options=new TableLayoutPanel{Dock=DockStyle.Top,AutoSize=true,ColumnCount=2,BackColor=GtcTheme.Surface,Padding=new Padding(P(12)),Margin=new Padding(0,0,0,P(10))};options.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));options.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));root.Controls.Add(options,0,1);
         Func<string,Control,Panel> field=(label,control)=>{var panel=new Panel{Height=P(65),Dock=DockStyle.Top,Margin=new Padding(0,0,P(10),0)};var heading=TextLabel(label,11);panel.Controls.Add(heading);control.Location=new Point(0,P(25));control.Width=P(215);panel.Controls.Add(control);return panel;};
         var duration=new FlowLayoutPanel{AutoSize=true,WrapContents=false,Margin=Padding.Empty};var mode=new ComboBox{DropDownStyle=ComboBoxStyle.DropDownList,FlatStyle=FlatStyle.Flat,BackColor=GtcTheme.Input,ForeColor=GtcTheme.Text,Font=F(12),Width=P(125)};mode.Items.AddRange(new object[]{"Voltas","Minutos"});mode.SelectedIndex=trainingOptions.Minutes?1:0;var amount=new NumericUpDown{Minimum=1,Maximum=999,Value=trainingOptions.Amount,BackColor=GtcTheme.Input,ForeColor=GtcTheme.Text,Font=F(12),Width=P(75)};duration.Controls.Add(mode);duration.Controls.Add(amount);options.Controls.Add(field("Duração do stint",duration),0,0);
         var target=new TextBox{Text=TimingData.Lap(trainingOptions.Target),BackColor=GtcTheme.Input,ForeColor=GtcTheme.Text,Font=F(12),BorderStyle=BorderStyle.FixedSingle,AccessibleName="Ritmo alvo em minutos e segundos"};options.Controls.Add(field("Ritmo alvo · m:ss,mmm",target),1,0);
+        help.LinkClicked+=(s,e)=>{StopCountdown();ShowTrainingHelp(value=>{target.Text=TimingData.Lap(value);},training.Run!=null&&training.Run.Active);};
         var tolerance=new NumericUpDown{Minimum=.05m,Maximum=30,DecimalPlaces=2,Increment=.05m,Value=(decimal)trainingOptions.Tolerance,BackColor=GtcTheme.Input,ForeColor=GtcTheme.Text,Font=F(12),AccessibleName="Janela de consistência em segundos"};options.Controls.Add(field("Janela de consistência · ± segundos",tolerance),0,1);
         var appearance=new FlowLayoutPanel{AutoSize=true,WrapContents=false};var show=new BrandCheck{Text="HUD",Checked=trainingOptions.ShowHud,AutoSize=true,Font=F(12),BackColor=GtcTheme.Surface,ForeColor=GtcTheme.Text,Margin=new Padding(0,P(4),P(10),0)};var opacity=new NumericUpDown{Minimum=40,Maximum=100,Value=Math.Max(40,Math.Min(100,trainingOptions.Opacity)),BackColor=GtcTheme.Input,ForeColor=GtcTheme.Text,Font=F(12),Width=P(75),AccessibleName="Opacidade do HUD em percentagem"};appearance.Controls.Add(show);appearance.Controls.Add(opacity);options.Controls.Add(field("Overlay de treino · opacidade %",appearance),1,1);
         var actions=new FlowLayoutPanel{AutoSize=true,Dock=DockStyle.Top,WrapContents=true,Margin=new Padding(0,0,0,P(9))};root.Controls.Add(actions,0,2);var begin=Button("Iniciar stint",140,true);var end=Button("Terminar",110);var move=Button("Mover HUD",120);var export=Button("Guardar gráfico",155);foreach(var button in new[]{begin,end,move}){button.Margin=new Padding(0,0,P(6),P(6));actions.Controls.Add(button);}
@@ -57,13 +63,13 @@ public sealed partial class CompanionWindow {
         };
         trainingHistory.SelectedIndexChanged+=(s,e)=>refreshTraining();RefreshTrainingHistory();refreshTraining();
         trainingTimer.Tick+=(s,e)=>{
-            bool wasActive=training.Run!=null&&training.Run.Active;var sample=trainingReader.Read();training.Update(sample);if(sample==null&&training.Run!=null&&training.Run.State=="running"&&!LaunchEngine.Running("rFactor2"))training.Stop("O rFactor foi fechado.",true);
+            bool wasActive=training.Run!=null&&training.Run.Active;var sample=trainingReader.Read();trainingRecords.Observe(sample);if(DateTime.UtcNow>=nextTrainingRecordSync||trainingRecords.Book.Revision!=storedTrainingRecordRevision){nextTrainingRecordSync=DateTime.UtcNow.AddSeconds(1);if(trainingRepository.Synchronize(trainingRecords.Book))storedTrainingRecordRevision=trainingRecords.Book.Revision;}training.Update(sample);if(sample==null&&training.Run!=null&&training.Run.State=="running"&&!LaunchEngine.Running("rFactor2"))training.Stop("O rFactor foi fechado.",true);
             if(training.Run!=null&&(training.Revision!=savedTrainingRevision||training.Run.Active&&(DateTime.UtcNow-savedTrainingAt).TotalSeconds>=5))try{TrainingStore.Save(training.Run);savedTrainingRevision=training.Revision;savedTrainingAt=DateTime.UtcNow;}catch(Exception ex){training.Notice="Não foi possível guardar o stint: "+ex.Message;}
             if(wasActive&&!training.Run.Active){RefreshTrainingHistory();Report("Stint terminado. O gráfico está na página Treino.");}
             if(page.Visible)refreshTraining();RefreshTrainingHud();
         };
         page.VisibleChanged+=(s,e)=>{if(page.Visible)refreshTraining();};Shown+=(s,e)=>{if(!PreviewOnly)trainingTimer.Start();};
-        FormClosed+=(s,e)=>{trainingTimer.Dispose();trainingReader.Dispose();if(training.Run!=null&&training.Run.Active){training.Stop("Companion fechado durante o stint.",true);try{TrainingStore.Save(training.Run);}catch{}}if(trainingHud!=null)trainingHud.Close();};
+        FormClosed+=(s,e)=>{trainingTimer.Dispose();trainingReader.Dispose();trainingRepository.Synchronize(trainingRecords.Book);trainingRepository.Dispose();if(training.Run!=null&&training.Run.Active){training.Stop("Companion fechado durante o stint.",true);try{TrainingStore.Save(training.Run);}catch{}}if(trainingHud!=null)trainingHud.Close();};
     }
     void RefreshTrainingHistory(){
         if(trainingHistory==null)return;trainingHistory.Items.Clear();trainingHistory.Items.Add(new TrainingHistoryItem());foreach(var run in TrainingStore.History().Where(run=>training.Run==null||run.Id!=training.Run.Id))trainingHistory.Items.Add(new TrainingHistoryItem{Run=run});trainingHistory.SelectedIndex=0;

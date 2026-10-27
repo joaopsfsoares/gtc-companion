@@ -88,6 +88,12 @@ As preferências e o histórico ficam, por defeito, em `%LOCALAPPDATA%\GTC-Compa
 
 Na página **Treino**, escolhe a duração em **voltas** ou **minutos**, o **ritmo alvo** (`m:ss,mmm`) e a **janela de consistência** em segundos para cada lado do alvo. **Iniciar stint** prepara a contagem na passagem seguinte pela meta; a volta de saída fica de fora. O treino funciona em singleplayer ou num servidor, sem precisar de classificação GTC.
 
+Em **Como configurar**, a calculadora usa **melhor volta válida × (1 + margem / 100)**. A margem de 0,5–1,0% é uma estimativa inicial ajustável, não uma regra universal. Usa uma referência representativa e confirma o alvo com 10–15 voltas nas condições de combustível, pneus e pista da corrida. O botão **Aplicar ao próximo stint** preenche o alvo, sem alterar um stint em curso. A ajuda explica a configuração, a passagem inicial pela meta e a leitura do resultado.
+
+O HUD de treino e o overlay de classificação têm apresentações separadas e **recordes locais partilhados**. Enquanto o Companion estiver aberto, as voltas completas e válidas observadas alimentam os recordes de tempo e setores, mesmo sem stint ativo ou com o HUD oculto. Voltas inválidas, parciais, em boxes ou com falhas de observação não melhoram os recordes. Os recordes existentes são importados sem apagar os ficheiros anteriores. A sincronização entre processos preserva as melhorias de ambos e mantém separados os setores da volta recorde e os melhores setores individuais.
+
+O registo comum fica em `records/personal-records.json` na pasta de dados, por pista, classe e piloto. A classificação **online** da GTC continua a mostrar apenas as voltas registadas pelo servidor; uma volta de singleplayer pode melhorar o recorde local, mas não é enviada para a GTC.
+
 Durante o stint, o HUD mostra voltas completas, voltas/tempo restantes, média, diferencial para o alvo, última volta, voltas dentro da janela e saídas estimadas. Média e diferencial usam todas as voltas completas, incluindo inválidas. Verde significa mais rápido que o alvo e vermelho mais lento. As configurações de duração e ritmo ficam fixas durante o stint.
 
 Nos treinos por minutos, o contador chega a zero e aguarda pela passagem seguinte na meta, contando apenas voltas completas. Uma ida às boxes, mudança de carro/pista/sessão ou salto de voltas interrompe o stint, preservando o resumo. A pausa do jogo não acrescenta tempo; na ausência de telemetria, o progresso fica suspenso. Voltas com dados incompletos são assinaladas.

@@ -80,7 +80,7 @@ As combinações podem ser alteradas em **Overlay → Atalhos**. As alterações
 
 O histórico de posições é recolhido uma vez por minuto enquanto o Companion ou o overlay estiverem abertos e é conservado durante oito dias, separado por campeonato, ronda e pista. Não recupera o passado. Uma comparação por período usa o último registo anterior ao instante escolhido, com tolerância de 15 minutos; sem dados suficientes mostra **—**.
 
-As ideais usam setores de voltas válidas da classificação, da sessão GTC e da telemetria local. A leitura de `/livetiming/snapshot/{id}` ocorre apenas com uma vista ideal ativa, no máximo uma vez a cada 15 segundos. São guardados apenas os dados desportivos necessários. Uma falha desta fonte mantém a classificação e os setores já observados.
+As ideais usam setores de voltas válidas da classificação, da sessão GTC e da telemetria local. O overlay consulta `/livetiming/snapshot/{id}` apenas com uma vista ideal ativa, no máximo uma vez a cada 15 segundos. A análise de pilotos usa a mesma fonte quando solicitada ou com recolha em segundo plano ativa. São guardados apenas os dados desportivos necessários. Uma falha desta fonte mantém a classificação e os dados já observados.
 
 As preferências e o histórico ficam, por defeito, em `%LOCALAPPDATA%\GTC-Companion`. Cada utilizador mantém o seu próprio histórico. Não partilhes a pasta de dados nem o link de entrada. A app não verifica inscrições; a organização e o servidor controlam a autorização de acesso.
 
@@ -101,6 +101,18 @@ Nos treinos por minutos, o contador chega a zero e aguarda pela passagem seguint
 O gráfico apresenta um ponto por volta, a linha do alvo e os limites superior/inferior da janela. Uma cruz assinala invalidade ou dados incompletos; o círculo laranja indica uma volta com saída estimada. Passa o rato sobre um ponto para os detalhes. **Guardar gráfico** exporta uma imagem PNG. O seletor permite rever os últimos 30 stints; os registos locais ficam em `training/stints` na pasta de dados.
 
 **Mover HUD** permite arrastá-lo; um duplo clique volta a bloqueá-lo. A posição e a opacidade ficam guardadas. O modo bloqueado deixa passar os cliques para o jogo.
+
+### Pilotos e stints
+
+**Treino → Pilotos e stints** apresenta gráficos de outros pilotos. Escolhe o **piloto**, a **sessão/origem** e **todos os stints** ou um stint específico. **Mostrar alvo do treino** usa a mesma referência e janela do teu treino, para comparar o ritmo. A seleção não altera os teus stints nem os recordes partilhados.
+
+- As linhas **PIT** assinalam entradas nas boxes observadas. A saída observada define o início do próximo stint. Marcas **~** indicam um limite aproximado, obtido de uma volta marcada com boxes ou de um aumento do contador de paragens entre duas leituras. Sem saída observada, a passagem continua em aberto.
+- A **média limpa** usa apenas as voltas disponíveis, válidas, completas e sem boxes. **Incluir outras voltas** mostra também as de boxes, inválidas e incompletas, assinaladas com uma cruz. Estas voltas não entram na média limpa.
+- Os números no eixo são as voltas reais da sessão. Voltas em falta ficam sem pontos e **não são interpretadas como paragens**. Passa o rato pelos pontos e marcas PIT para consultar os detalhes. **Guardar gráfico** exporta PNG.
+
+A telemetria local acompanha os carros da sessão enquanto o Companion está aberto, mesmo sem stint de treino ativo. **Atualizar GTC** consulta apenas o snapshot desportivo do campeonato selecionado, com intervalo mínimo de 15 segundos. **Recolher GTC em segundo plano** permite continuar a consulta com esta janela fechada, enquanto o Companion estiver aberto; a opção vem desativada na distribuição.
+
+O snapshot pode conter apenas alguns pilotos e parte das suas voltas. A app mostra a cobertura disponível e mantém os dados anteriores quando a fonte falha. Não recupera todas as sessões passadas nem inventa tempos ou paragens em falta. As sessões e campeonatos ficam separados; uma nova abertura da app inicia uma nova janela de observação local. Os registos desportivos ficam em `training/drivers` na pasta de dados deste PC e não são incluídos no ZIP distribuído.
 
 As **saídas de pista são estimadas**, não são as infrações oficiais do servidor. É contado um evento quando o centro do carro permanece mais de 1 m além do limite reportado pela telemetria durante 0,6 s. Só é contado outro evento depois de regressar ao interior durante 0,6 s. Boxes e menus não contam. O traçado e falhas de telemetria podem afetar esta estimativa.
 

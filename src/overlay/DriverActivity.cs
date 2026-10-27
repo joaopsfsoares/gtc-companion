@@ -12,7 +12,7 @@ using System.Linq;
 using System.Text;
 
 public enum DriverPresence{Unknown,OnTrack,InPits,Paddock}
-public sealed class DriverActivityEntry{public string Name,Class;public DriverPresence State;public LiveSample Lap;}
+public sealed class DriverActivityEntry{public string Name,Class;public DriverPresence State;public LiveSample Lap;public int? PitStops;public bool IsPlayer;}
 public sealed class DriverActivitySnapshot {
     public string Track;
     public DateTime UpdatedUtc;
@@ -29,7 +29,7 @@ public sealed class DriverActivitySnapshot {
         for(int i=0;i<count;i++){
             int offset=560+i*584;bool pits=data[offset+198]!=0,player=data[offset+196]!=0;int control=unchecked((sbyte)data[offset+197]);
             var state=control<0?DriverPresence.Unknown:pits?DriverPresence.InPits:player&&data[127]==0?DriverPresence.Paddock:BitConverter.ToDouble(data,offset+104)>=0?DriverPresence.OnTrack:DriverPresence.Paddock;
-            result.Drivers.Add(new DriverActivityEntry{Name=Text(data,offset+4,32),Class=Text(data,offset+200,32),State=state,Lap=control<0?null:new LiveSample{
+            result.Drivers.Add(new DriverActivityEntry{Name=Text(data,offset+4,32),Class=Text(data,offset+200,32),State=state,PitStops=Math.Max(0,(int)BitConverter.ToInt16(data,offset+192)),IsPlayer=player,Lap=control<0?null:new LiveSample{
                 Track=result.Track,Driver=Text(data,offset+4,32),Car=Text(data,offset+36,64),CarClass=Text(data,offset+200,32),Session=BitConverter.ToInt32(data,76),Slot=BitConverter.ToInt32(data,offset),
                 SessionTime=BitConverter.ToDouble(data,80),Realtime=data[127]!=0,InPits=pits,Laps=BitConverter.ToInt16(data,offset+100),Sector=data[offset+102],CountLapFlag=data[offset+506],Distance=BitConverter.ToDouble(data,offset+104),LapStart=BitConverter.ToDouble(data,offset+256),
                 CurrentS1=BitConverter.ToDouble(data,offset+176),CurrentS12=BitConverter.ToDouble(data,offset+184),LastS1=BitConverter.ToDouble(data,offset+152),LastS12=BitConverter.ToDouble(data,offset+160),LastLap=BitConverter.ToDouble(data,offset+168),BestLap=BitConverter.ToDouble(data,offset+144),BestS1=BitConverter.ToSingle(data,offset+528),BestS12=BitConverter.ToSingle(data,offset+532)

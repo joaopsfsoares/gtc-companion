@@ -1,0 +1,12 @@
+{
+  "TinyPedal": {
+    "repository": "https://github.com/TinyPedal/TinyPedal",
+    "revision": "bf43bd5db0cd15f57672e5c75696ced0df020781",
+    "license": "GPL-3.0-or-later"
+  },
+  "CrewChief": {
+    "repository": "https://gitlab.com/mr_belowski/CrewChiefV4",
+    "revision": "a73cb5aa8783d645bc65b86def55a7b143e1b6e6",
+    "license": "MIT"
+  }
+}

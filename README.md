@@ -53,6 +53,8 @@ As páginas próprias do Companion editam as configurações dos motores origina
 
 Inclui TinyPedal **2.52.0** e Crew Chief **4.19.5.8**, sem alterações aos executáveis. Os pacotes de áudio são descarregados pelo assistente de instalação. Estas páginas cobrem as configurações disponíveis nos perfis; algumas ferramentas continuam a pertencer às aplicações originais.
 
+Ao arrancar pelo Companion, a janela principal do Crew Chief fica em segundo plano enquanto o motor continua ativo. A janela de carregamento e a janela principal são tratadas separadamente; outras janelas do motor continuam disponíveis para funções que ainda pertençam à aplicação original.
+
 ## Overlay de classificação
 
 O overlay apresenta posições, nomes, voltas acumuladas, diferenças e setores da classificação GTC. As definições estão em **Overlay**: aparência, classificação, estado e atalhos.

@@ -18,9 +18,9 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 [assembly:AssemblyTitle("GTC Companion")]
 [assembly:AssemblyProduct("GTC Companion")]
-[assembly:AssemblyVersion("0.10.0.0")]
-[assembly:AssemblyFileVersion("0.10.0.0")]
-[assembly:AssemblyInformationalVersion("0.10.0")]
+[assembly:AssemblyVersion("0.10.1.0")]
+[assembly:AssemblyFileVersion("0.10.1.0")]
+[assembly:AssemblyInformationalVersion("0.10.1")]
 
 public sealed partial class CompanionWindow:Form {
     public bool PreviewOnly;
@@ -123,6 +123,7 @@ public sealed partial class CompanionWindow:Form {
         countdown.Tick+=async(s,e)=>{seconds--;if(seconds<=0){StopCountdown();await Launch();}else Report("Arranque automático em "+seconds+" segundos. Seleciona uma página para configurar.");};
         requests.Tick+=async(s,e)=>{string file=Path.Combine(CompanionStore.Root,"request.txt");try{if(!File.Exists(file))return;string request=File.ReadAllText(file);File.Delete(file);if(request=="quit"){Close();return;}BackgroundStart=false;WindowState=FormWindowState.Normal;Show();Activate();StopCountdown();if(request=="overlay-settings")selectPage(3);if(request=="training")selectPage(6);if(request=="launch"&&!starting)await Launch();if(request=="launch-menu"&&!starting)await Launch(false);}catch(Exception ex){CompanionStore.Log(ex.Message);}};requests.Start();
         historyTimer.Tick+=async(s,e)=>await history.Collect(settings);
+        Shown+=(s,e)=>{if(!PreviewOnly&&settings.StartCrewChief&&LaunchEngine.Running("CrewChiefV4"))EngineBackground.RequestHidden(settings.CrewChiefPath,"Crew Chief");};
         Shown+=async(s,e)=>{if(!PreviewOnly){historyTimer.Start();await history.Collect(settings);}};
         Shown+=(s,e)=>{if(!PreviewOnly&&!configure&&ComponentSetup.NeedsSetup(settings)){ShowTelemetrySetup(game.Text.Trim().Trim('"'));return;}if(!PreviewOnly&&settings.Configured&&CompetitionProfiles.HasAccess(CompetitionProfiles.EnsureSelected(settings))&&settings.AutoStart&&!configure){cancel.Visible=true;Report("Arranque automático em 4 segundos. Seleciona uma página para configurar.");countdown.Start();}};
         FormClosing+=(s,e)=>{StopCountdown();if(operation!=null)operation.Cancel();};FormClosed+=(s,e)=>{countdown.Dispose();requests.Dispose();historyTimer.Dispose();history.Dispose();if(operation!=null)operation.Dispose();};

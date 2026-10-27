@@ -95,7 +95,7 @@ public sealed class NativeEnginePage:UserControl {
     }
     async Task StartEngine(){
         changed();if(session!=null&&session.Dirty){status.Text="Guarda as alterações antes de iniciar o motor.";return;}string exe=executable();if(!File.Exists(exe)){status.Text="Pacote incompleto. Extrai novamente a aplicação com a pasta components.";return;}
-        try{BundledEngines.Prepare();EngineSettingsQueue.Apply(engine);Process.Start(new ProcessStartInfo(exe,engine=="crew"?"-game RF2":""){WorkingDirectory=Path.GetDirectoryName(exe),UseShellExecute=true,WindowStyle=ProcessWindowStyle.Minimized});status.Text="A iniciar o motor…";await EngineBackground.HideWhenReady(exe,engine=="crew"?"Crew Chief":"TinyPedal");UpdateStatus();}catch(Exception ex){status.Text=ex.Message;}
+        try{BundledEngines.Prepare();EngineSettingsQueue.Apply(engine);Process.Start(new ProcessStartInfo(exe,engine=="crew"?"-game RF2":""){WorkingDirectory=Path.GetDirectoryName(exe),UseShellExecute=true,WindowStyle=engine=="crew"?ProcessWindowStyle.Hidden:ProcessWindowStyle.Minimized});status.Text="A iniciar o motor…";if(engine=="crew")EngineBackground.RequestHidden(exe,"Crew Chief");else await EngineBackground.HideTinyOnce(exe);UpdateStatus();}catch(Exception ex){status.Text=ex.Message;}
     }
     void Render(){
         viewport.SuspendLayout();contents.SuspendLayout();invalid.Clear();foreach(Control control in contents.Controls.Cast<Control>().ToArray())control.Dispose();contents.RowStyles.Clear();contents.RowCount=0;

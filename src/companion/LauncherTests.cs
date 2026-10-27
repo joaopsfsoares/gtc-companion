@@ -37,6 +37,7 @@ public static class LauncherTests {
         GtcTypography.Verify();
         EngineSettingsTests.Run();
         EngineIntegrationTests.Run();
+        EngineBackgroundTests.Run();
         ShortcutTests.Run();
         CompetitionTests.Run();
         TelemetryPluginTests.Run();

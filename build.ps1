@@ -1,4 +1,4 @@
-﻿# Copyright (C) 2026 GTC Companion contributors.
+# Copyright (C) 2026 GTC Companion contributors.
 # This file is part of GTC Companion.
 # GTC Companion is free software: you can redistribute it and/or modify it
 # under the terms of the GNU General Public License, version 3, as published
@@ -58,11 +58,11 @@ if(!$CodeOnly){
     Copy-Item -LiteralPath (Join-Path $root 'components') -Destination $dist -Recurse -Force
     Copy-Item -LiteralPath (Join-Path $root 'third-party-source') -Destination $dist -Recurse -Force
 }
-$sourceZip=Join-Path $root 'GTC-Companion-source-0.7.4.zip'
+$sourceZip=Join-Path $root 'GTC-Companion-source-0.7.5.zip'
 $sourceFiles=@('src','assets','README.md','SECURITY.md','SIGNING.md','THIRD-PARTY-NOTICES.md','LICENSE','build.ps1','sign.ps1','prepare-components.ps1','.gitignore') | ForEach-Object {Join-Path $root $_}
 Compress-Archive -LiteralPath $sourceFiles -DestinationPath $sourceZip -Force
 Copy-Item -LiteralPath $sourceZip -Destination (Join-Path $dist 'SOURCE.zip') -Force
-$zip=Join-Path $root 'GTC-Companion-0.7.4.zip'
+$zip=Join-Path $root 'GTC-Companion-0.7.5.zip'
 $package=@('GTC-Companion.exe','README.md','FONT-LICENCE.txt','LICENSE','THIRD-PARTY-NOTICES.md','TINYPEDAL-LICENSE.txt','CREWCHIEF-LICENSE.txt','SOURCE.zip') | ForEach-Object {Join-Path $dist $_}
 if(!$CodeOnly){$package+=Join-Path $root 'components';$package+=Join-Path $root 'third-party-source'}
 Compress-Archive -LiteralPath $package -DestinationPath $zip -Force

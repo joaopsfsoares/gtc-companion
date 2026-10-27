@@ -39,6 +39,8 @@ public static class LauncherTests {
         EngineIntegrationTests.Run();
         ShortcutTests.Run();
         CompetitionTests.Run();
+        TelemetryPluginTests.Run();
+        File.WriteAllText(Path.Combine(Path.GetDirectoryName(report),"telemetry-plugin-tests.txt"),"OK: bloqueio com jogo aberto; instalação nova; backup da DLL e JSON; preservação de outros plugins e opções; ativação dos buffers; rejeição de JSON inválido e DLL inválida; prevenção de plugins concorrentes; cancelamento quando o jogo abre durante a preparação.");
         SynchronizationContext.SetSynchronizationContext(null);
         var position=new Preferences{X=1234,Y=876,PositionAnchor=0,Player="Teste"};new OverlayPatch{OpacityPercent=75,PilotsAbove=3,PositionReference=1,PositionReferenceHours=24}.Apply(position);
         if(position.X!=1234||position.Y!=876||position.PositionAnchor!=0||position.OpacityPercent!=75||position.PilotsAbove!=3)throw new Exception("Alterações do Companion não podem substituir a posição manual do overlay");

@@ -8,6 +8,7 @@ using System.IO;
 using System.Windows.Forms;
 
 public static class AppInfo {
+    public const string ReleasesUrl="https://github.com/joaopsfsoares/gtc-companion/releases";
     public static string Version{get{return Application.ProductVersion;}}
     public static string EngineVersion(string name,string executable){
         try{var manifest=CompanionStore.Json.Deserialize<Dictionary<string,object>>(File.ReadAllText(Path.Combine(BundledEngines.Root,"manifest.json")));return Convert.ToString(((Dictionary<string,object>)manifest[name])["version"]);}catch{}
@@ -21,6 +22,7 @@ public sealed partial class CompanionWindow {
         Action<TableLayoutPanel,string,bool> line=(panel,text,bold)=>{var label=TextLabel(text,bold?19:12,bold);label.MaximumSize=new Size(P(495),0);label.Margin=new Padding(0,0,0,P(9));panel.Controls.Add(label);};
         var identity=card("GTC COMPANION");line(identity,"Versão "+AppInfo.Version,true);line(identity,"Criado por João Soares",false);line(identity,"Versão de teste · GPLv3",false);
         var copy=Button("Copiar informação da versão",250);identity.Controls.Add(copy);copy.Click+=(s,e)=>{try{Clipboard.SetText(AppInfo.Summary());Report("Informação da versão copiada.");}catch{Report("Não foi possível copiar a informação.");}};
+        var updates=new LinkLabel{Text="Ver atualizações ↗",AccessibleName="Ver versões e atualizações do GTC Companion no GitHub",AutoSize=true,Font=F(12),LinkColor=GtcTheme.Accent,VisitedLinkColor=GtcTheme.Accent,ActiveLinkColor=GtcTheme.Text,LinkBehavior=LinkBehavior.HoverUnderline,Margin=new Padding(0,P(12),0,0),Cursor=Cursors.Hand};identity.Controls.Add(updates);updates.LinkClicked+=(s,e)=>{StopCountdown();try{ProcessUrl(AppInfo.ReleasesUrl);}catch{Report("Não foi possível abrir a página de atualizações no navegador.");}};
         var components=card("MOTORES INCLUÍDOS");
         Action<string,string> engineLink=(text,url)=>{var link=new LinkLabel{Text=text,AccessibleName=text+", abrir repositório oficial",AutoSize=true,Font=F(12),LinkColor=GtcTheme.Accent,VisitedLinkColor=GtcTheme.Accent,ActiveLinkColor=GtcTheme.Text,LinkBehavior=LinkBehavior.HoverUnderline,Margin=new Padding(0,0,0,P(9)),Cursor=Cursors.Hand};components.Controls.Add(link);link.LinkClicked+=(s,e)=>{StopCountdown();try{ProcessUrl(url);}catch{Report("Não foi possível abrir o repositório no navegador.");}};};
         engineLink("TinyPedal "+AppInfo.EngineVersion("TinyPedal",BundledEngines.Tiny),"https://github.com/TinyPedal/TinyPedal");

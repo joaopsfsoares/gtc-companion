@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 GTC Companion contributors.
+// Copyright (C) 2026 GTC Companion contributors.
 // This file is part of GTC Companion.
 // GTC Companion is free software: you can redistribute it and/or modify it
 // under the terms of the GNU General Public License, version 3, as published
@@ -49,7 +49,7 @@ public static class CrewVoices {
     public static async Task Install(string destination,Action<string> progress,CancellationToken cancel){
         if(LaunchEngine.Running("CrewChiefV4"))throw new InvalidOperationException("Fecha o motor Crew Chief antes de instalar ou atualizar as vozes.");
         using(var client=new HttpClient{Timeout=TimeSpan.FromMinutes(30)}){
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("GTC-Companion/0.7.4");var xml=new XmlDocument{XmlResolver=null};xml.LoadXml(await client.GetStringAsync("https://thecrewchief.org/downloads.php?do=downloadxml"));
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("GTC-Companion/0.7.5");var xml=new XmlDocument{XmlResolver=null};xml.LoadXml(await client.GetStringAsync("https://thecrewchief.org/downloads.php?do=downloadxml"));
             string[] groups={"voice-messages","driver-names"},versions={"sound_pack_version_info.txt",Path.Combine("driver_names","driver_names_version_info.txt")};
             for(int kind=0;kind<groups.Length;kind++){
                 var group=xml.SelectSingleNode("/item/sounds[@language='en']/"+groups[kind]);if(group==null)throw new InvalidDataException("A lista oficial de vozes não tem o formato esperado.");int latest=int.Parse(group.Attributes["latest-version"].Value,CultureInfo.InvariantCulture);

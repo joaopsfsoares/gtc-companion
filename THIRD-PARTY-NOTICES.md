@@ -22,7 +22,7 @@ As páginas nativas TinyPedal e Crew Chief utilizam os formatos de configuraçã
 
 O esquema de referência do Crew Chief foi derivado de `CrewChiefV4/Properties/Settings.settings`, Copyright (c) 2019-2024 Britton IT Ltd, sob MIT. Está em `assets/engines/crew-defaults.json`. O aviso de copyright e a licença MIT são preservados em `CREWCHIEF-LICENSE.txt` no pacote e em `assets/engines/CREWCHIEF-LICENSE.txt` no código-fonte. As revisões e ligações dos dois projetos estão em `assets/engines/PROVENANCE.json`.
 
-O leitor de telemetria implementa em C# o formato de memória partilhada rFactor2SharedMemoryMapPlugin 3.7. As definições de campos consultadas estão identificadas no código (`TonyWhitley/pyRfactor2SharedMemory`, `rF2data.py`). O plugin do jogo é instalado separadamente.
+O leitor de telemetria implementa em C# o formato de memória partilhada rFactor2SharedMemoryMapPlugin 3.7. As definições de campos consultadas estão identificadas no código (`TonyWhitley/pyRfactor2SharedMemory`, `rF2data.py`). A instalação assistida abre o projeto oficial para o utilizador obter a DLL e permite copiá-la e ativá-la no jogo, com cópia de segurança. A DLL escolhida pelo utilizador não é incluída no pacote do Companion. Projeto oficial: https://github.com/TheIronWolfModding/rF2SharedMemoryMapPlugin
 
 ## Fontes e bibliotecas dos motores
 

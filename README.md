@@ -10,19 +10,23 @@ Criado por **João Soares** · GPLv3 · Windows 10/11
 
 1. Extrai o ZIP completo para uma pasta onde possas escrever e abre **GTC-Companion.exe**.
 2. Em **Sessão**, confirma o nome do piloto, a pasta do rFactor 2 e o arranque automático.
-3. Para os widgets e as voltas em direto, usa **Sessão → Telemetria → Configurar telemetria…**.
+3. Em **Sessão → Instalação → Instalar componentes…**, instala o plugin de telemetria e os pacotes de áudio do Crew Chief.
 4. Em **Aplicações**, escolhe se queres abrir o TinyPedal e o Crew Chief. Os motores estão incluídos no ZIP; não precisam de instalação separada nem de configuração dos seus caminhos.
-5. Em **Crew Chief → Instalar vozes**, descarrega o áudio com o motor parado.
+5. O botão **Crew Chief → Instalar vozes** abre o mesmo assistente para verificar ou completar a instalação.
 
 Requisitos: Steam, rFactor 2 e .NET Framework 4.8. A app não exige Python ou Node instalados. Os carros e as pistas devem estar instalados no jogo.
 
 ### Telemetria do rFactor 2
 
-A instalação assistida abre o [projeto oficial rF2 Shared Memory Map](https://github.com/TheIronWolfModding/rF2SharedMemoryMapPlugin#download). Descarrega e extrai o pacote, fecha o jogo e seleciona `rFactor2SharedMemoryMapPlugin64.dll` no assistente. **Instalar e ativar** copia a DLL para `Bin64/Plugins` e ativa a entrada em `UserData/player/CustomPluginVariables.JSON`. As restantes preferências são preservadas. Os ficheiros substituídos ficam em `UserData/player/CompanionPluginBackups`.
+O ZIP inclui o plugin **rF2 Shared Memory Map 3.7.15.1**, com licença e fontes correspondentes. O assistente copia e ativa o plugin automaticamente: não é necessário procurar uma DLL nem abrir páginas de download. O rFactor tem de estar fechado para alterar a instalação do plugin.
 
-A DLL é obtida pelo utilizador na origem oficial; o Companion não a descarrega nem instala sem essa seleção. A instalação verifica o formato Windows de 64 bits, mas essa verificação não certifica a origem do ficheiro. Com o jogo aberto, configuração inválida ou outro plugin de memória partilhada ativo/por configurar, a operação é bloqueada. Não instala um segundo plugin concorrente. Versões com outro nome, como `RF2.3.8.SharedMemoryMapPlugin.dll`, exigem verificar a compatibilidade no projeto do plugin antes de mudar de versão.
+No mesmo assistente, **Crew Chief · vozes, nomes e personalizações** obtém os pacotes do serviço oficial. São verificadas as versões instaladas e descarregados apenas os pacotes necessários. Os downloads concluídos ficam em cache; se cancelares ou houver uma falha, volta a carregar em **Instalar / verificar**. A instalação dos ficheiros de áudio exige o motor Crew Chief parado. A escolha de voz e nome continua nas definições do Crew Chief e não é substituída pelo instalador.
 
-Depois abre o rFactor e entra em pista. Também podes ativar o plugin manualmente em **Settings → Gameplay → Plugins**, reiniciando o jogo depois da alteração. Se a DLL não aparecer, verifica o Visual C++ 2013 Runtime em `Support/Runtimes` do jogo, conforme o guia oficial do TinyPedal.
+Quando faltam componentes, a abertura normal do Companion apresenta este assistente antes do arranque automático da sessão. Podes escolher os componentes ou fechar o assistente e configurar a aplicação. **Instalar componentes…** fica sempre disponível em Sessão.
+
+A instalação do plugin preserva as outras preferências e guarda cópias dos ficheiros substituídos em `UserData/player/CompanionPluginBackups`. Configuração inválida ou outro plugin de memória partilhada potencialmente ativo bloqueiam a operação. Não são instalados plugins concorrentes. Depois de instalar, abre o jogo e entra em pista para confirmar a telemetria.
+
+Se a DLL não aparecer no jogo, verifica o Visual C++ 2013 Runtime em `Support/Runtimes`, conforme o [guia oficial do TinyPedal](https://github.com/TinyPedal/TinyPedal#setup-for-rfactor-2). A origem, a versão e os hashes do plugin estão em `assets/plugins/RF2-PROVENANCE.json`.
 
 A classificação GTC funciona sem este plugin. Voltas em direto, presença dos carros e widgets dependem da telemetria local compatível.
 
@@ -47,7 +51,7 @@ As páginas próprias do Companion editam as configurações dos motores origina
 - **Crew Chief:** perfis, nomes e vozes instalados, volumes, dispositivos de áudio, microfone, reconhecimento de voz, spotter e mensagens.
 - **Guardar alterações:** aplica apenas os campos alterados. Com o motor aberto, coloca-os numa fila local para aplicar depois de fechar ou no próximo arranque. Os ficheiros originais são guardados em `backups/engines`. Conflitos com alterações externas exigem recarregar e rever.
 
-Inclui TinyPedal **2.52.0** e Crew Chief **4.19.5.8**, sem alterações aos executáveis. As vozes são descarregadas separadamente. Estas páginas cobrem as configurações disponíveis nos perfis; algumas ferramentas continuam a pertencer às aplicações originais.
+Inclui TinyPedal **2.52.0** e Crew Chief **4.19.5.8**, sem alterações aos executáveis. Os pacotes de áudio são descarregados pelo assistente de instalação. Estas páginas cobrem as configurações disponíveis nos perfis; algumas ferramentas continuam a pertencer às aplicações originais.
 
 ## Overlay de classificação
 

@@ -10,6 +10,7 @@ param([switch]$Test,[switch]$CodeOnly,[string]$SigningThumbprint,[string]$Timest
 $ErrorActionPreference='Stop'
 $root=$PSScriptRoot
 if(!$CodeOnly -and (!(Test-Path -LiteralPath (Join-Path $root 'components\TinyPedal\tinypedal.exe')) -or !(Test-Path -LiteralPath (Join-Path $root 'components\CrewChiefV4\CrewChiefV4.exe')))){& (Join-Path $root 'prepare-components.ps1')}
+if(!$CodeOnly -and !(Test-Path -LiteralPath (Join-Path $root 'components\rF2SharedMemoryMap\rFactor2SharedMemoryMapPlugin64.dll'))){& (Join-Path $root 'prepare-plugin.ps1')}
 $signing=@{}
 if($SigningThumbprint){
     if(!$TimestampUrl){throw 'Para assinar, indica também -TimestampUrl com o serviço RFC3161 do fornecedor.'}
@@ -36,6 +37,7 @@ foreach($file in @('GtcTheme.cs','GtcTypography.cs','TimingData.cs','RankingHist
 & $compiler /nologo /target:winexe /optimize+ ('/out:'+$app) ('/win32icon:'+$icon) ('/resource:'+$icon+',GtcIcon') ('/resource:'+(Join-Path $root 'assets\gtc-mark.png')+',GtcMark') ('/resource:'+$overlay+',GtcOverlay') $fontArgs $engineArgs $refs $companionSources
 if($LASTEXITCODE -ne 0){throw 'Falha na compilação do launcher.'}
 if($SigningThumbprint){& (Join-Path $root 'sign.ps1') @signing -FilePath $app}
+if(!$CodeOnly){Copy-Item -LiteralPath (Join-Path $root 'components') -Destination $out -Recurse -Force;Copy-Item -LiteralPath (Join-Path $root 'assets\engines\COMPONENT-SOURCES.md') -Destination (Join-Path $root 'third-party-source\README.md') -Force}
 if($Test){
     $testData=Join-Path $out 'test-data'
     New-Item -ItemType Directory -Path $testData -Force | Out-Null
@@ -54,15 +56,14 @@ Copy-Item -LiteralPath (Join-Path $root 'assets\fonts\FONT-LICENCE.txt') -Destin
 Copy-Item -LiteralPath (Join-Path $root 'assets\engines\TINYPEDAL-LICENSE.txt') -Destination $dist -Force
 Copy-Item -LiteralPath (Join-Path $root 'assets\engines\CREWCHIEF-LICENSE.txt') -Destination $dist -Force
 if(!$CodeOnly){
-    Copy-Item -LiteralPath (Join-Path $root 'components') -Destination $out -Recurse -Force
     Copy-Item -LiteralPath (Join-Path $root 'components') -Destination $dist -Recurse -Force
     Copy-Item -LiteralPath (Join-Path $root 'third-party-source') -Destination $dist -Recurse -Force
 }
-$sourceZip=Join-Path $root 'GTC-Companion-source-0.7.5.zip'
-$sourceFiles=@('src','assets','README.md','SECURITY.md','SIGNING.md','THIRD-PARTY-NOTICES.md','LICENSE','build.ps1','sign.ps1','prepare-components.ps1','.gitignore') | ForEach-Object {Join-Path $root $_}
+$sourceZip=Join-Path $root 'GTC-Companion-source-0.7.6.zip'
+$sourceFiles=@('src','assets','README.md','SECURITY.md','SIGNING.md','THIRD-PARTY-NOTICES.md','LICENSE','build.ps1','sign.ps1','prepare-components.ps1','prepare-plugin.ps1','.gitignore') | ForEach-Object {Join-Path $root $_}
 Compress-Archive -LiteralPath $sourceFiles -DestinationPath $sourceZip -Force
 Copy-Item -LiteralPath $sourceZip -Destination (Join-Path $dist 'SOURCE.zip') -Force
-$zip=Join-Path $root 'GTC-Companion-0.7.5.zip'
+$zip=Join-Path $root 'GTC-Companion-0.7.6.zip'
 $package=@('GTC-Companion.exe','README.md','FONT-LICENCE.txt','LICENSE','THIRD-PARTY-NOTICES.md','TINYPEDAL-LICENSE.txt','CREWCHIEF-LICENSE.txt','SOURCE.zip') | ForEach-Object {Join-Path $dist $_}
 if(!$CodeOnly){$package+=Join-Path $root 'components';$package+=Join-Path $root 'third-party-source'}
 Compress-Archive -LiteralPath $package -DestinationPath $zip -Force

@@ -10,6 +10,17 @@ using System.Text;
 public static class TelemetryPlugin {
     public const string FileName="rFactor2SharedMemoryMapPlugin64.dll";
     public const string ProjectUrl="https://github.com/TheIronWolfModding/rF2SharedMemoryMapPlugin#download";
+    public const string BundledSha256="9d98d77b767812dca5afeb6663f486b3ad5be090c3e10783f36bc73a470ab5e6";
+    public static bool Ready(string game){
+        try{if(!AppDiscovery.IsGameDirectory(game))return false;ValidateBinary(PluginPath(game));var config=Config(game);object raw;var plugin=config.TryGetValue(FileName,out raw)?raw as Dictionary<string,object>:null;return !OtherPlugin(game,config)&&Enabled(plugin)&&(!plugin.ContainsKey("UnsubscribedBuffersMask")||(Convert.ToInt32(plugin["UnsubscribedBuffersMask"])&3)==0)&&(!plugin.ContainsKey("EnableLegacyNames")||Convert.ToInt32(plugin["EnableLegacyNames"])==1);}catch{return false;}
+    }
+    public static void InstallIncluded(string game,Func<bool> running){
+        if(Ready(game))return;
+        string source=Path.Combine(BundledEngines.Root,"rF2SharedMemoryMap",FileName);
+        if(!File.Exists(source))throw new FileNotFoundException("O plugin não está no pacote. Extrai o ZIP completo do Companion.");
+        using(var hash=SHA256.Create())if(BitConverter.ToString(hash.ComputeHash(File.ReadAllBytes(source))).Replace("-","").ToLowerInvariant()!=BundledSha256)throw new InvalidDataException("O plugin incluído não passou a verificação de integridade. Extrai novamente o pacote completo.");
+        Install(game,source,running);
+    }
     static string PluginPath(string game){return Path.Combine(game,"Bin64","Plugins",FileName);}
     static string ConfigPath(string game){return Path.Combine(game,"UserData","player","CustomPluginVariables.JSON");}
     static Dictionary<string,object> Config(string game){

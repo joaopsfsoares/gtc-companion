@@ -1,4 +1,4 @@
-﻿# Fontes dos componentes incluídos
+# Fontes dos componentes incluídos
 
 Os motores são distribuídos sem alterações aos binários. Os avisos originais permanecem em `components`. Este ficheiro indica onde obter o código correspondente das bibliotecas e os respetivos scripts de compilação. As bibliotecas partilhadas podem ser substituídas por versões modificadas compatíveis.
 
@@ -8,6 +8,6 @@ Os motores são distribuídos sem alterações aos binários. Os avisos originai
 - Python **3.8.10**, PSF: https://www.python.org/ftp/python/3.8.10/Python-3.8.10.tar.xz . Licença preservada em `LICENSE.Python3.txt` na mesma pasta de avisos.
 - psutil **6.1.1**, BSD-3-Clause: https://github.com/giampaolo/psutil/tree/release-6.1.1 . Licença em `LICENSE.psutil.txt`.
 - Crew Chief **4.19.5.8**, código MIT: https://gitlab.com/mr_belowski/CrewChiefV4 . A licença e o aviso originais estão em `CREWCHIEF-LICENSE.txt` e no diretório do motor. Os pacotes de voz são descarregados separadamente do serviço oficial; a licença do código não concede direitos adicionais sobre esses sons.
-- rF2SharedMemoryMapPlugin, GPLv3, distribuído nos diretórios de plugins dos motores: https://github.com/TheIronWolfModding/rF2SharedMemoryMapPlugin . O código e as versões publicadas estão no projeto original; licença preservada em `components/TinyPedal/docs/licenses/LICENSE.rF2SharedMemoryMapPlugin.txt`. O Companion não instala esses plugins no jogo.
+- rF2SharedMemoryMapPlugin, GPLv3, distribuído nos diretórios de plugins dos motores: https://github.com/TheIronWolfModding/rF2SharedMemoryMapPlugin . O código e as versões publicadas estão no projeto original; licença preservada em `components/TinyPedal/docs/licenses/LICENSE.rF2SharedMemoryMapPlugin.txt`. O instalador do Companion usa a cópia 3.7.15.1 em `components/rF2SharedMemoryMap`, com README, licença e proveniência. As fontes correspondentes, incluindo os projetos de compilação, estão em `rF2SharedMemoryMap-3.7.15.1-source.zip` neste diretório; revisão `48aa12dbb68849923870acd8e68044c46c3d83eb`.
 
 O código original do Companion, os esquemas editáveis, os recursos e os scripts de compilação estão em `SOURCE.zip` (GPL-3.0-only). `prepare-components.ps1` fixa as versões e verifica os SHA256 dos arquivos oficiais antes de preparar os motores. Estes URLs externos são indicados para acesso às fontes das bibliotecas originais, sem custo adicional; os restantes ficheiros-fonte referidos localmente acompanham este pacote.

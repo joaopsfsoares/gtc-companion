@@ -1,4 +1,4 @@
-﻿# Licenciamento e recursos de terceiros
+# Licenciamento e recursos de terceiros
 
 O código original do GTC Companion e do overlay GTC Timing é disponibilizado sob a GNU General Public License, versão 3 (SPDX: `GPL-3.0-only`). Copyright (C) 2026 GTC Companion contributors. O texto integral está em `LICENSE`.
 
@@ -22,8 +22,8 @@ As páginas nativas TinyPedal e Crew Chief utilizam os formatos de configuraçã
 
 O esquema de referência do Crew Chief foi derivado de `CrewChiefV4/Properties/Settings.settings`, Copyright (c) 2019-2024 Britton IT Ltd, sob MIT. Está em `assets/engines/crew-defaults.json`. O aviso de copyright e a licença MIT são preservados em `CREWCHIEF-LICENSE.txt` no pacote e em `assets/engines/CREWCHIEF-LICENSE.txt` no código-fonte. As revisões e ligações dos dois projetos estão em `assets/engines/PROVENANCE.json`.
 
-O leitor de telemetria implementa em C# o formato de memória partilhada rFactor2SharedMemoryMapPlugin 3.7. As definições de campos consultadas estão identificadas no código (`TonyWhitley/pyRfactor2SharedMemory`, `rF2data.py`). A instalação assistida abre o projeto oficial para o utilizador obter a DLL e permite copiá-la e ativá-la no jogo, com cópia de segurança. A DLL escolhida pelo utilizador não é incluída no pacote do Companion. Projeto oficial: https://github.com/TheIronWolfModding/rF2SharedMemoryMapPlugin
+O leitor de telemetria implementa em C# o formato de memória partilhada rFactor2SharedMemoryMapPlugin 3.7. As definições de campos consultadas estão identificadas no código (`TonyWhitley/pyRfactor2SharedMemory`, `rF2data.py`). O pacote inclui o plugin 3.7.15.1, sem alterações, com licença GPLv3, README original e proveniência em `components/rF2SharedMemoryMap`. As fontes correspondentes da revisão `48aa12dbb68849923870acd8e68044c46c3d83eb` acompanham o pacote em `third-party-source/rF2SharedMemoryMap-3.7.15.1-source.zip`. A instalação é opcional e preserva os plugins e as preferências existentes. Projeto oficial: https://github.com/TheIronWolfModding/rF2SharedMemoryMapPlugin
 
 ## Fontes e bibliotecas dos motores
 
-`third-party-source/README.md` identifica as versões e as fontes correspondentes. O ZIP TinyPedal inclui o código e os submódulos nas revisões fixadas. Qt, PySide2 e shiboken mantêm LGPLv3 e as bibliotecas partilhadas originais substituíveis; não é imposto qualquer bloqueio à sua substituição nem à depuração de versões modificadas. Os avisos PSF, BSD, MIT e GPL dos restantes componentes permanecem nas pastas originais. O código e os scripts do Companion estão em `SOURCE.zip`. Os plugins distribuídos nos diretórios dos motores não são instalados ou atualizados automaticamente no jogo.
+`third-party-source/README.md` identifica as versões e as fontes correspondentes. O ZIP TinyPedal inclui o código e os submódulos nas revisões fixadas. Qt, PySide2 e shiboken mantêm LGPLv3 e as bibliotecas partilhadas originais substituíveis; não é imposto qualquer bloqueio à sua substituição nem à depuração de versões modificadas. Os avisos PSF, BSD, MIT e GPL dos restantes componentes permanecem nas pastas originais. O código e os scripts do Companion estão em `SOURCE.zip`. Os restantes plugins distribuídos nos diretórios dos motores mantêm a instalação própria dos respetivos projetos.

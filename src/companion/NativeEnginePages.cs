@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2026 GTC Companion contributors.
+// Copyright (C) 2026 GTC Companion contributors.
 // This file is part of GTC Companion.
 // GTC Companion is free software: you can redistribute it and/or modify it
 // under the terms of the GNU General Public License, version 3, as published
@@ -56,14 +56,14 @@ public sealed class NativeEnginePage:UserControl {
     Button MakeButton(string text,bool primary=false){var button=new Button{Text=text,AutoSize=true,Height=P(34),Padding=new Padding(P(10),P(4),P(10),P(4)),BackColor=primary?GtcTheme.Accent:GtcTheme.Input,ForeColor=primary?GtcTheme.Background:GtcTheme.Text,Font=F(11,true),FlatStyle=FlatStyle.Flat,Cursor=Cursors.Hand,Margin=new Padding(0,0,P(8),0)};button.FlatAppearance.BorderColor=GtcTheme.Border;return button;}
     ComboBox MakeChoice(){var combo=new ComboBox{DropDownStyle=ComboBoxStyle.DropDownList,FlatStyle=FlatStyle.Flat,BackColor=GtcTheme.Input,ForeColor=GtcTheme.Text,Font=F(12),Width=P(210),Margin=new Padding(0,0,P(8),0),DrawMode=DrawMode.OwnerDrawFixed,ItemHeight=P(22)};combo.DrawItem+=(s,e)=>{if(e.Index<0)return;using(var brush=new SolidBrush(GtcTheme.Input))e.Graphics.FillRectangle(brush,e.Bounds);TextRenderer.DrawText(e.Graphics,combo.GetItemText(combo.Items[e.Index]),combo.Font,e.Bounds,GtcTheme.Text,TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);};return combo;}
     sealed class Choice{public string Id,Caption;public override string ToString(){return Caption;}}
-    public NativeEnginePage(string id,Func<string> path,Action onChange,float dpi,Func<string,EngineSettingsSession> settingsLoader=null){
+    public NativeEnginePage(string id,Func<string> path,Action onChange,float dpi,Func<string,EngineSettingsSession> settingsLoader=null,Action installComponents=null){
         engine=id;name=id=="tiny"?"TinyPedal":"Crew Chief";executable=path;changed=onChange;loader=settingsLoader;scale=dpi;Dock=DockStyle.Fill;BackColor=GtcTheme.Background;widgetView=id=="tiny";
         var root=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=7,Margin=Padding.Empty};root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));for(int i=0;i<5;i++)root.RowStyles.Add(new RowStyle(SizeType.AutoSize));root.RowStyles.Add(new RowStyle(SizeType.Percent,100));root.RowStyles.Add(new RowStyle(SizeType.AutoSize));Controls.Add(root);
         var heading=new Label{Text=name,Font=F(19,true),AutoSize=true,ForeColor=GtcTheme.Text,Margin=new Padding(0,0,0,P(10))};root.Controls.Add(heading,0,0);
         var tabs=new FlowLayoutPanel{Dock=DockStyle.Top,AutoSize=true,Margin=new Padding(0,0,0,P(12))};root.Controls.Add(tabs,0,1);widgets=MakeButton("Widgets");preferences=MakeButton("Definições");if(id=="tiny"){tabs.Controls.Add(widgets);tabs.Controls.Add(preferences);}start=MakeButton("Iniciar");tabs.Controls.Add(start);save=MakeButton("Guardar",true);tabs.Controls.Add(save);
         if(id=="crew"){
             var stop=MakeButton("Parar");tabs.Controls.Add(stop);stop.Click+=async(s,e)=>{changed();if(!EngineSettingsQueue.Running("crew"))return;try{using(var command=Process.Start(new ProcessStartInfo(executable(),"-c_exit"){UseShellExecute=true,WindowStyle=ProcessWindowStyle.Hidden})){}for(int n=0;n<60&&EngineSettingsQueue.Running("crew");n++)await Task.Delay(250);BundledEngines.Prepare();EngineSettingsQueue.ApplyReady();UpdateStatus();}catch(Exception ex){status.Text=ex.Message;}};
-            var voices=MakeButton("Instalar vozes");tabs.Controls.Add(voices);voices.Click+=async(s,e)=>{changed();if(voiceDownload!=null){voiceDownload.Cancel();return;}if(EngineSettingsQueue.Running("crew")){status.Text="Para o motor antes de instalar ou atualizar as vozes.";return;}voiceDownload=new CancellationTokenSource();voices.Text="Cancelar descarga";try{await CrewVoices.Install(CrewVoices.SoundRoot(executable(),session==null?null:session.Options),text=>status.Text=text,voiceDownload.Token);LoadSettings(session==null?null:session.Profile);}catch(OperationCanceledException){status.Text="Descarga cancelada.";}catch(Exception ex){status.Text=ex.Message;}finally{voiceDownload.Dispose();voiceDownload=null;voices.Text="Instalar vozes";}};
+            var voices=MakeButton("Instalar vozes");tabs.Controls.Add(voices);voices.Click+=async(s,e)=>{changed();if(installComponents!=null){installComponents();Render();return;}if(voiceDownload!=null){voiceDownload.Cancel();return;}if(EngineSettingsQueue.Running("crew")){status.Text="Para o motor antes de instalar ou atualizar as vozes.";return;}voiceDownload=new CancellationTokenSource();voices.Text="Cancelar descarga";try{await CrewVoices.Install(CrewVoices.SoundRoot(executable(),session==null?null:session.Options),text=>status.Text=text,voiceDownload.Token);LoadSettings(session==null?null:session.Profile);}catch(OperationCanceledException){status.Text="Descarga cancelada.";}catch(Exception ex){status.Text=ex.Message;}finally{voiceDownload.Dispose();voiceDownload=null;voices.Text="Instalar vozes";}};
         }
 
         var selectors=new FlowLayoutPanel{Dock=DockStyle.Top,AutoSize=true,Margin=new Padding(0,0,0,P(10)),WrapContents=true};root.Controls.Add(selectors,0,2);
@@ -87,7 +87,7 @@ public sealed class NativeEnginePage:UserControl {
         }catch(Exception ex){session=null;status.Text=ex.Message;contents.Controls.Clear();}finally{loading=false;}
     }
     void UpdateStatus(){
-        if(session==null)return;int count=EngineSettingsQueue.Pending(engine).Changes.Count;bool running=EngineSettingsQueue.Running(engine);start.Enabled=!running;start.Text=running?"Motor ativo":"Iniciar";save.Enabled=session.Dirty;
+        if(session==null||voiceDownload!=null)return;int count=EngineSettingsQueue.Pending(engine).Changes.Count;bool running=EngineSettingsQueue.Running(engine);start.Enabled=!running;start.Text=running?"Motor ativo":"Iniciar";save.Enabled=session.Dirty;
         if(invalid.Count>0){save.Enabled=false;status.Text="Corrige os valores assinalados antes de guardar.";return;}
         if(session.Dirty){status.Text="Existem alterações por guardar.";return;}
         if(!string.IsNullOrEmpty(session.Warning)){status.Text=session.Warning;return;}
@@ -150,6 +150,6 @@ public sealed class NativeEnginePage:UserControl {
 
 public sealed partial class CompanionWindow {
     readonly System.Windows.Forms.Timer engineSettingsTimer=new System.Windows.Forms.Timer{Interval=5000};
-    void CreateEnginePage(Panel page,string id,Func<string> path){foreach(Control control in page.Controls.Cast<Control>().ToArray())control.Dispose();page.AutoScroll=false;page.Controls.Add(new NativeEnginePage(id,path,StopCountdown,scale));}
+    void CreateEnginePage(Panel page,string id,Func<string> path){foreach(Control control in page.Controls.Cast<Control>().ToArray())control.Dispose();page.AutoScroll=false;page.Controls.Add(new NativeEnginePage(id,path,StopCountdown,scale,null,()=>ShowTelemetrySetup(game.Text.Trim().Trim('"'))));}
     void StartEngineSettings(){Shown+=(s,e)=>{if(!PreviewOnly){engineSettingsTimer.Tick+=(sender,args)=>{try{BundledEngines.Prepare();EngineSettingsQueue.ApplyReady();}catch(Exception ex){CompanionStore.Log("Preferências dos motores: "+ex.Message);}};engineSettingsTimer.Start();}};FormClosed+=(s,e)=>engineSettingsTimer.Dispose();}
 }

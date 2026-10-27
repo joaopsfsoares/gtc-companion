@@ -1,0 +1,9 @@
+{
+  "dllSha256": "9d98d77b767812dca5afeb6663f486b3ad5be090c3e10783f36bc73a470ab5e6",
+  "sourceSha256": "cdd1c0062f1a08fb2d0e5c3edf8df4ed37a0cd2b119a977b08563f9f02b1e69e",
+  "upstream": "https://github.com/TheIronWolfModding/rF2SharedMemoryMapPlugin",
+  "revision": "48aa12dbb68849923870acd8e68044c46c3d83eb",
+  "archiveSha256": "0d176f2c9b7f5bab8684aebc611aa7c43b244cf2d11b49b26d2bdf164b9d8918",
+  "version": "3.7.15.1",
+  "originalArchive": "https://www.mediafire.com/file/s6ojcr9zrs6q9ls/rf2_sm_tools_3.7.15.1.zip/file"
+}

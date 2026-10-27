@@ -18,9 +18,9 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 [assembly:AssemblyTitle("GTC Companion")]
 [assembly:AssemblyProduct("GTC Companion")]
-[assembly:AssemblyVersion("0.7.5.0")]
-[assembly:AssemblyFileVersion("0.7.5.0")]
-[assembly:AssemblyInformationalVersion("0.7.5")]
+[assembly:AssemblyVersion("0.7.6.0")]
+[assembly:AssemblyFileVersion("0.7.6.0")]
+[assembly:AssemblyInformationalVersion("0.7.6")]
 
 public sealed partial class CompanionWindow:Form {
     public bool PreviewOnly;
@@ -89,7 +89,7 @@ public sealed partial class CompanionWindow:Form {
         Func<TextBox,bool,Control> path=(box,isFolder)=>{var panel=new TableLayoutPanel{ColumnCount=2,RowCount=1,Height=P(34),Margin=Padding.Empty};panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,P(89)));box.Dock=DockStyle.Fill;box.Margin=new Padding(0,P(4),P(8),0);panel.Controls.Add(box,0,0);var browse=Button("Procurar…",89);panel.Controls.Add(browse,1,0);browse.Click+=(s,e)=>{StopCountdown();if(isFolder){using(var dialog=new FolderBrowserDialog{Description="Pasta do rFactor 2 (Bin64 e UserData)",SelectedPath=box.Text})if(dialog.ShowDialog(this)==DialogResult.OK)box.Text=dialog.SelectedPath;}else{using(var dialog=new OpenFileDialog{Filter="Aplicação (*.exe)|*.exe",FileName=box.Text,CheckFileExists=true})if(dialog.ShowDialog(this)==DialogResult.OK)box.Text=dialog.FileName;}};return panel;};
         var identity=card(0,"PILOTO E JOGO");driver=input(settings.Driver);row(identity,"Nome na classificação GTC",driver);game=input(settings.GameDirectory);row(identity,"Pasta do rFactor 2",path(game,true));
         var behavior=card(0,"AO ABRIR A APLICAÇÃO");automatic=check("Iniciar a sessão automaticamente",settings.AutoStart);borderless=check("Usar modo sem bordas para os overlays",settings.Borderless);behavior.Controls.Add(automatic);behavior.Controls.Add(borderless);
-        CreateTelemetryCard(card(0,"TELEMETRIA"));
+        CreateTelemetryCard(card(0,"INSTALAÇÃO"));
         var crewCard=card(1,"CREW CHIEF");AddRepositoryLink(crewCard,"Crew Chief","https://gitlab.com/mr_belowski/CrewChiefV4");crew=check("Abrir o Crew Chief com a sessão",settings.StartCrewChief);crewCard.Controls.Add(crew);crewPath=input(settings.CrewChiefPath);var crewIncluded=TextLabel(File.Exists(BundledEngines.Crew)?"Motor incluído · 4.19.5.8":"Extrai o pacote completo para incluir o motor.",12);crewIncluded.ForeColor=GtcTheme.Muted;crewIncluded.Margin=new Padding(0,0,0,P(8));crewCard.Controls.Add(crewIncluded);var configureCrew=Button("Configurar Crew Chief",205);crewCard.Controls.Add(configureCrew);configureCrew.Click+=(s,e)=>selectPage(5);
         var tinyCard=card(1,"TINYPEDAL");AddRepositoryLink(tinyCard,"TinyPedal","https://github.com/TinyPedal/TinyPedal");tiny=check("Abrir o TinyPedal com a sessão",settings.StartTinyPedal);tinyCard.Controls.Add(tiny);tinyPath=input(settings.TinyPedalPath);var tinyIncluded=TextLabel(File.Exists(BundledEngines.Tiny)?"Motor incluído · 2.52.0":"Extrai o pacote completo para incluir o motor.",12);tinyIncluded.ForeColor=GtcTheme.Muted;tinyIncluded.Margin=new Padding(0,0,0,P(8));tinyCard.Controls.Add(tinyIncluded);var configureTiny=Button("Configurar TinyPedal",205);tinyCard.Controls.Add(configureTiny);configureTiny.Click+=(s,e)=>selectPage(4);
         var info=TextLabel("Os motores são opcionais e vêm no pacote. Não precisas de escolher caminhos.\nAs vozes do Crew Chief são geridas na respetiva página.",12);info.ForeColor=GtcTheme.Muted;info.MaximumSize=new Size(P(510),0);stacks[1].Controls.Add(info);
@@ -123,7 +123,7 @@ public sealed partial class CompanionWindow:Form {
         requests.Tick+=async(s,e)=>{string file=Path.Combine(CompanionStore.Root,"request.txt");try{if(!File.Exists(file))return;string request=File.ReadAllText(file);File.Delete(file);if(request=="quit"){Close();return;}BackgroundStart=false;WindowState=FormWindowState.Normal;Show();Activate();StopCountdown();if(request=="overlay-settings")selectPage(3);if(request=="launch"&&!starting)await Launch();if(request=="launch-menu"&&!starting)await Launch(false);}catch(Exception ex){CompanionStore.Log(ex.Message);}};requests.Start();
         historyTimer.Tick+=async(s,e)=>await history.Collect(settings);
         Shown+=async(s,e)=>{if(!PreviewOnly){historyTimer.Start();await history.Collect(settings);}};
-        Shown+=(s,e)=>{if(!PreviewOnly&&settings.Configured&&CompetitionProfiles.HasAccess(CompetitionProfiles.EnsureSelected(settings))&&settings.AutoStart&&!configure){cancel.Visible=true;Report("Arranque automático em 4 segundos. Seleciona uma página para configurar.");countdown.Start();}};
+        Shown+=(s,e)=>{if(!PreviewOnly&&!configure&&ComponentSetup.NeedsSetup(settings)){ShowTelemetrySetup(game.Text.Trim().Trim('"'));return;}if(!PreviewOnly&&settings.Configured&&CompetitionProfiles.HasAccess(CompetitionProfiles.EnsureSelected(settings))&&settings.AutoStart&&!configure){cancel.Visible=true;Report("Arranque automático em 4 segundos. Seleciona uma página para configurar.");countdown.Start();}};
         FormClosing+=(s,e)=>{StopCountdown();if(operation!=null)operation.Cancel();};FormClosed+=(s,e)=>{countdown.Dispose();requests.Dispose();historyTimer.Dispose();history.Dispose();if(operation!=null)operation.Dispose();};
         GtcWindowTheme.Attach(this);selectPage(0);building=false;RefreshCompetitions();if(CompetitionProfiles.Selected(settings)==null)Report("Usa + Adicionar para criar o teu primeiro campeonato.");
     }
@@ -140,7 +140,7 @@ public sealed partial class CompanionWindow:Form {
     }
     void Report(string text){if(IsDisposed)return;message.Text=text;PersistLaunchState();}
     public async Task Launch(bool joinServer=true){
-        if(starting)return;StopCountdown();if(!Save(joinServer,!joinServer))return;launchJoinServer=joinServer;starting=true;BeginLaunchProgress();menuStart.Visible=false;menuStart.Enabled=false;body.Enabled=false;competitions.Enabled=false;addCompetition.Enabled=false;editCompetition.Enabled=false;start.Enabled=false;save.Enabled=false;cancel.Visible=true;cancel.Text="Cancelar";if(operation!=null)operation.Dispose();operation=new CancellationTokenSource();
+        if(starting||settingUp)return;StopCountdown();if(!Save(joinServer,!joinServer))return;launchJoinServer=joinServer;starting=true;BeginLaunchProgress();menuStart.Visible=false;menuStart.Enabled=false;body.Enabled=false;competitions.Enabled=false;addCompetition.Enabled=false;editCompetition.Enabled=false;start.Enabled=false;save.Enabled=false;cancel.Visible=true;cancel.Text="Cancelar";if(operation!=null)operation.Dispose();operation=new CancellationTokenSource();
         try{using(var engine=new LaunchEngine()){string result=await engine.Run(settings,text=>{Report(text);CompanionStore.Log(text);},operation.Token,SetLaunchStep,joinServer);launchState=result.StartsWith("Entrada enviada")?"action-required":result.Contains("já está ligado")?"existing-connection":"complete";Report(result);CompanionStore.Log(result);}}
         catch(OperationCanceledException){launchState="cancelled";Report("Arranque cancelado. As aplicações já abertas continuam a funcionar.");}
         catch(Exception ex){launchState="failed";Report(ex.Message);CompanionStore.Log(ex.GetType().Name+": "+ex.Message);}

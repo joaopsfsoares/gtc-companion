@@ -30,7 +30,7 @@ public sealed partial class CompanionWindow {
     void CreateTrainingPage(Panel page){
         foreach(Control control in page.Controls.Cast<Control>().ToArray())control.Dispose();page.AutoScroll=true;
         trainingOptions=CompanionStore.Read<TrainingOptions>(Path.Combine("training","options.json"))??new TrainingOptions();try{trainingOptions.Validate();}catch{trainingOptions=new TrainingOptions();}
-        training.Restore(TrainingStore.History().FirstOrDefault());
+        var restoredRun=TrainingStore.History().FirstOrDefault();bool restoreWasActive=restoredRun!=null&&restoredRun.Active;training.Restore(restoredRun);if(!restoreWasActive){savedTrainingRevision=training.Revision;savedTrainingAt=DateTime.UtcNow;}
         trainingRepository=new PersonalRecordRepository(CompanionStore.Root);trainingRepository.Synchronize(trainingRecords.Book);
         StartDriverHistory();
         var root=new TableLayoutPanel{Dock=DockStyle.Top,AutoSize=true,ColumnCount=1,RowCount=8,Margin=Padding.Empty};root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));for(int row=0;row<7;row++)root.RowStyles.Add(new RowStyle(SizeType.AutoSize));root.RowStyles.Add(new RowStyle(SizeType.Absolute,P(240)));page.Controls.Add(root);

@@ -49,6 +49,8 @@ public static class LauncherTests {
         SourcePriorityTests.Run();
         LapAnalysisTests.Run();
         RecordSharingTests.Run();
+        ReplaySelectionTests.Run();
+        ReplayArchiveTests.Run();
         var position=new Preferences{X=1234,Y=876,PositionAnchor=0,Player="Teste"};new OverlayPatch{OpacityPercent=75,PilotsAbove=3,PositionReference=1,PositionReferenceHours=24}.Apply(position);
         if(position.X!=1234||position.Y!=876||position.PositionAnchor!=0||position.OpacityPercent!=75||position.PilotsAbove!=3)throw new Exception("Alterações do Companion não podem substituir a posição manual do overlay");
         var defaults=new LaunchSettings();

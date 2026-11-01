@@ -30,6 +30,7 @@ public sealed class LaunchSettings {
     public string TinyPedalPath {get;set;}
     public bool AutoStart {get;set;}
     public bool Borderless {get;set;}
+    public bool AutoReplay {get;set;}
     public List<CompetitionProfile> Competitions {get;set;}
     public string SelectedCompetitionId {get;set;}
     [ScriptIgnore]public string ServerHost {get{var p=CompetitionProfiles.Selected(this);return p==null?"":p.ServerHost;}set{CompetitionProfiles.EnsureSelected(this,true).ServerHost=value;}}

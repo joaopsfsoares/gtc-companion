@@ -53,7 +53,7 @@ public sealed class DriverHistoryCollector {
 }
 // Only sporting fields are deserialized. Server access, fuel, tyres and IDs are
 // never persisted. The source session identifier is used only in a hashed key.
-public sealed class DriverTimingSnapshot {public string sourceSessionId{get;set;}public DriverTimingSession sessionInfo{get;set;}public List<DriverTimingEntry> entries{get;set;}public List<DriverTimingEntry> standings{get;set;}}
+public sealed class DriverTimingSnapshot {public string generatedAt{get;set;}public string sourceSessionId{get;set;}public DriverTimingSession sessionInfo{get;set;}public List<DriverTimingEntry> entries{get;set;}public List<DriverTimingEntry> standings{get;set;}}
 public sealed class DriverTimingSession {public string trackName{get;set;}public double? sessionCode{get;set;}public double? currentEventTime{get;set;}}
 public sealed class DriverTimingEntry {public string driverName{get;set;}public string vehicleClass{get;set;}public double? lapsCompleted{get;set;}public double? totalLaps{get;set;}public double? pitStops{get;set;}public double? numPitstops{get;set;}public bool? inPits{get;set;}public double? lastLapTime{get;set;}public List<DriverTimingLap> lapHistory{get;set;}}
 public sealed class DriverTimingLap {public double? lapNumber{get;set;}public double? lapTime{get;set;}public double? s1{get;set;}public double? s2{get;set;}public double? s3{get;set;}public bool? invalid{get;set;}public bool? pit{get;set;}public string completedAt{get;set;}}

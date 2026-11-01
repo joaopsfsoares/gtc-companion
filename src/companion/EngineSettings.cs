@@ -111,7 +111,7 @@ public sealed class EngineSettingsSession {
         if(root==null)return;foreach(var pair in root){var group=pair.Value as Dictionary<string,object>;if(group==null)continue;foreach(var item in group)Add(prefix+pair.Key,item.Key,item.Value,file,new[]{pair.Key,item.Key});}
     }
     public static EngineSettingsSession Tiny(string executable,string profile=null){
-        var session=new EngineSettingsSession{Engine="tiny"};if(string.IsNullOrWhiteSpace(executable))throw new IOException("Seleciona o motor TinyPedal na página Aplicações.");
+        var session=new EngineSettingsSession{Engine="tiny"};if(string.IsNullOrWhiteSpace(executable))throw new IOException("Motor TinyPedal em falta. Extrai o pacote completo do Companion.");
         string folder=Path.GetDirectoryName(executable);string config=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),"TinyPedal","config.json");var global=Read(config);
         string settings=Path.Combine(folder,"settings");object paths;if(global!=null&&global.TryGetValue("user_path",out paths)){object path;if(((Dictionary<string,object>)paths).TryGetValue("settings_path",out path)&&!string.IsNullOrWhiteSpace(Convert.ToString(path)))settings=Path.IsPathRooted(Convert.ToString(path))?Convert.ToString(path):Path.Combine(folder,Convert.ToString(path));}
         session.DirectoryPath=settings;
@@ -131,7 +131,7 @@ public sealed class EngineSettingsSession {
         return files.FirstOrDefault();
     }
     public static EngineSettingsSession Crew(string executable,string profile=null,string globalOverride=null,string profilesOverride=null){
-        var session=new EngineSettingsSession{Engine="crew"};if(string.IsNullOrWhiteSpace(executable))throw new IOException("Seleciona o motor Crew Chief na página Aplicações.");
+        var session=new EngineSettingsSession{Engine="crew"};if(string.IsNullOrWhiteSpace(executable))throw new IOException("Motor Crew Chief em falta. Extrai o pacote completo do Companion.");
         string global=globalOverride??CrewGlobalPath(executable)??(System.IO.File.Exists(executable+".config")?executable+".config":null);var actual=new Dictionary<string,string>();
         if(global!=null){var xml=new XmlDocument{XmlResolver=null};xml.Load(global);foreach(XmlNode setting in xml.SelectNodes("/configuration/userSettings/CrewChiefV4.Properties.Settings/setting"))actual[setting.Attributes["name"].Value]=setting.SelectSingleNode("value").InnerText;}
         string directory=profilesOverride??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),"CrewChiefV4","Profiles");session.DirectoryPath=directory;

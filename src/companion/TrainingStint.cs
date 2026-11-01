@@ -47,11 +47,13 @@ public sealed class TrainingRun {
     public TrainingRun(){Laps=new List<TrainingLap>();State="armed";}
     public double? Average {get{return Laps.Count==0?(double?)null:Laps.Average(x=>x.Time);}}
     public int InWindow {get{return Laps.Count(x=>TrainingMath.WithinWindow(x.Time,Options.Target,Options.Tolerance));}}
+    public int FasterThanWindow {get{return Laps.Count(x=>TrainingMath.FasterThanWindow(x.Time,Options.Target,Options.Tolerance));}}
     public bool Active {get{return State=="armed"||State=="running";}}
 }
 public static class TrainingMath {
     public static bool Positive(double x){return x>0&&!double.IsNaN(x)&&!double.IsInfinity(x);}
-    public static bool WithinWindow(double time,double target,double tolerance){return Math.Abs(time-target)<=tolerance+.000001;}
+    public static bool WithinWindow(double time,double target,double tolerance){return Positive(time)&&Positive(target)&&!double.IsNaN(tolerance)&&!double.IsInfinity(tolerance)&&tolerance>=0&&time<=target+tolerance+.000001;}
+    public static bool FasterThanWindow(double time,double target,double tolerance){return WithinWindow(time,target,tolerance)&&time<target-tolerance-.000001;}
     public static double RacePace(double best,double marginPercent){if(!Positive(best)||best<10||best>1800||double.IsNaN(marginPercent)||marginPercent<0||marginPercent>10)throw new ArgumentException("Indica uma volta válida e uma margem entre 0 e 10%.");double pace=best*(1+marginPercent/100);if(pace>1800)throw new ArgumentException("O alvo calculado excede 30 minutos.");return pace;}
     public static bool ParsePace(string value,out double seconds){
         seconds=0;string[] fields=(value??"").Trim().Replace(',','.').Split(':');double tail;int minutes;

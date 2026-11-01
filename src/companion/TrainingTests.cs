@@ -10,6 +10,9 @@ public static class TrainingTests {
     static TrainingModel Start(TrainingOptions options){var m=new TrainingModel();m.Arm(options);m.Update(Sample(10,0,0));m.Update(Sample(80.1,80,1));Check(m.Run.State=="running"&&m.Run.Laps.Count==0,"A saída e a primeira volta parcial devem ficar fora da contagem");return m;}
     public static void Run(){
         double pace;Check(TrainingMath.ParsePace("1:22,700",out pace)&&Math.Abs(pace-82.7)<.0001,"Formato português de ritmo");Check(TrainingMath.ParsePace("1:22.7",out pace),"Formato com ponto");Check(!TrainingMath.ParsePace("1:82",out pace)&&!TrainingMath.ParsePace("NaN",out pace),"Recusar ritmos inválidos");
+        Check(Math.Abs(TrainingMath.RacePace(82.7,.5)-83.1135)<.000001&&TrainingMath.SuggestedTolerance(82.7)==.50,"Sugestão de alvo e janela a partir da melhor volta");
+        Check(TrainingMath.SuggestedTolerance(10)==.10&&TrainingMath.SuggestedTolerance(1800)==10.80,"Limites e arredondamento da janela sugerida");
+        using(var hud=new TrainingHud(1,point=>{})){int full=hud.ClientSize.Height;hud.SetCompact(true);Check(hud.ClientSize.Height<full,"Vista compacta do overlay de stint");hud.SetCompact(false);Check(hud.ClientSize.Height==full,"Restaurar a vista completa do stint");}
         var model=Start(new TrainingOptions{Amount=3,Target=82,Tolerance=.5});
         model.Update(Sample(81,80,1,82,true));model.Update(Sample(81.4,80,1,82,true));Check(model.Run.OffTracks==0,"Ignorar passagens fugazes além dos limites");model.Update(Sample(81.7,80,1,82,true));model.Update(Sample(82.4,80,1,82,true));Check(model.Run.OffTracks==1,"Contar uma saída contínua uma única vez");
         model.Update(Sample(83,80,1));model.Update(Sample(83.7,80,1));model.Update(Sample(84,80,1,82,true,1));model.Update(Sample(84.7,80,1,82,true,1));Check(model.Run.OffTracks==2,"Contar uma nova saída após regressar à pista");

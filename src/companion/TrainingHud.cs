@@ -9,28 +9,34 @@ using System.Windows.Forms;
 public sealed class TrainingHud:Form {
     [DllImport("user32.dll")]static extern int GetWindowLong(IntPtr window,int index);
     [DllImport("user32.dll")]static extern int SetWindowLong(IntPtr window,int index,int value);
-    readonly float scale;readonly Action<Point> moved;
-    bool locked=true,dragging;Point mouseStart,windowStart;
+    readonly float scale;readonly Action<Point> moved;readonly Action<bool> lockChanged;
+    bool locked=true,dragging,compact;Point mouseStart,windowStart;
     public TrainingRun Run;public string Notice;
+    public string MoveShortcut;
+    public bool IsCompact{get{return compact;}}
     protected override bool ShowWithoutActivation{get{return true;}}
     protected override CreateParams CreateParams{get{var p=base.CreateParams;p.ExStyle|=0x80|0x08000000|(locked?0x20:0);return p;}}
-    public TrainingHud(float dpi,Action<Point> onMove){scale=dpi;moved=onMove;FormBorderStyle=FormBorderStyle.None;ShowInTaskbar=false;TopMost=true;BackColor=GtcTheme.Background;DoubleBuffered=true;AutoScaleMode=AutoScaleMode.None;ClientSize=new Size((int)(480*scale),(int)(177*scale));MouseDoubleClick+=(s,e)=>Lock();}
+    public TrainingHud(float dpi,Action<Point> onMove,Action<bool> onLockChanged=null){scale=dpi;moved=onMove;lockChanged=onLockChanged;FormBorderStyle=FormBorderStyle.None;ShowInTaskbar=false;TopMost=true;BackColor=GtcTheme.Background;DoubleBuffered=true;AutoScaleMode=AutoScaleMode.None;ClientSize=new Size((int)(480*scale),(int)(177*scale));MouseDoubleClick+=(s,e)=>Lock(true);}
     public void Unlock(){locked=false;if(IsHandleCreated)SetWindowLong(Handle,-20,GetWindowLong(Handle,-20)&~0x20);Invalidate();}
-    void Lock(){if(dragging){dragging=false;Capture=false;moved(Location);}locked=true;if(IsHandleCreated)SetWindowLong(Handle,-20,GetWindowLong(Handle,-20)|0x20);Invalidate();}
+    void Lock(bool notify=false){if(dragging){dragging=false;Capture=false;moved(Location);}locked=true;if(IsHandleCreated)SetWindowLong(Handle,-20,GetWindowLong(Handle,-20)|0x20);Invalidate();if(notify&&lockChanged!=null)lockChanged(true);}
+    public void SetLocked(bool value){if(value)Lock();else Unlock();}
+    public void SetCompact(bool value){if(compact==value)return;compact=value;ClientSize=new Size((int)(480*scale),(int)((compact?88:177)*scale));Invalidate();}
     protected override void WndProc(ref Message message){if(message.Msg==0x21){message.Result=new IntPtr(3);return;}base.WndProc(ref message);}
-    protected override void OnMouseDown(MouseEventArgs e){base.OnMouseDown(e);if(locked||e.Button!=MouseButtons.Left)return;dragging=true;mouseStart=Cursor.Position;windowStart=Location;Capture=true;}
+    protected override void OnMouseDown(MouseEventArgs e){base.OnMouseDown(e);if(locked||e.Button!=MouseButtons.Left)return;if(e.X/scale>=350&&e.Y/scale<29){Lock(true);return;}dragging=true;mouseStart=Cursor.Position;windowStart=Location;Capture=true;}
     protected override void OnMouseMove(MouseEventArgs e){base.OnMouseMove(e);if(dragging)Location=new Point(windowStart.X+Cursor.Position.X-mouseStart.X,windowStart.Y+Cursor.Position.Y-mouseStart.Y);}
     protected override void OnMouseUp(MouseEventArgs e){base.OnMouseUp(e);if(dragging){dragging=false;Capture=false;moved(Location);}}
     protected override void OnPaint(PaintEventArgs e){
         base.OnPaint(e);var g=e.Graphics;g.ScaleTransform(scale,scale);g.TextRenderingHint=System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
         Action<string,int,int,int,Color,bool> text=(value,x,y,size,color,bold)=>{using(var font=GtcTypography.Create(size,bold))using(var brush=new SolidBrush(color))g.DrawString(value,font,brush,x,y);};
-        text(!locked?"ARRASTA · DUPLO CLIQUE PARA BLOQUEAR":"TREINO DE RITMO",14,10,10,GtcTheme.Accent,true);
-        if(Run==null)return;
-        if(Run.State=="armed"){text("A aguardar passagem pela meta",14,36,18,GtcTheme.Text,true);text("A volta de saída não conta.",14,77,11,GtcTheme.Muted,false);text("Alvo "+TimingData.Lap(Run.Options.Target)+" · "+Run.Options.Amount+(Run.Options.Minutes?" minutos":" voltas"),14,113,12,GtcTheme.Accent,true);return;}
+        text(!locked?"ARRASTA · "+(string.IsNullOrWhiteSpace(MoveShortcut)?"DUPLO CLIQUE PARA BLOQUEAR":MoveShortcut+" PARA BLOQUEAR"):"STINT",14,10,10,GtcTheme.Accent,true);
+        if(!locked){using(var pen=new Pen(GtcTheme.Accent))g.DrawRectangle(pen,350,5,116,23);text("CONCLUIR",365,9,10,GtcTheme.Accent,true);}
+        if(Run==null){text("Inicia um stint para ver os tempos.",14,36,16,GtcTheme.Muted,false);return;}
+        if(Run.State=="armed"){text("A aguardar passagem pela meta",14,36,18,GtcTheme.Text,true);if(!compact){text("A volta de saída não conta.",14,77,11,GtcTheme.Muted,false);text("Alvo "+TimingData.Lap(Run.Options.Target)+" · "+Run.Options.Amount+(Run.Options.Minutes?" minutos":" voltas"),14,113,12,GtcTheme.Accent,true);}return;}
         string count=Run.Options.Minutes?Run.Laps.Count+" voltas · "+TrainingMath.Remaining(Run):Run.Laps.Count+" / "+Run.Options.Amount+" voltas · "+TrainingMath.Remaining(Run);
         text(Run.Active?count:(Run.State=="completed"?"OBJETIVO CONCLUÍDO":Run.State=="interrupted"?"STINT INTERROMPIDO":"TERMINADO MANUALMENTE")+" · "+Run.Laps.Count+" voltas",14,34,13,Run.State=="interrupted"?GtcTheme.Accent:GtcTheme.Text,true);
         text("Média "+TrainingMath.Lap(Run.Average),14,59,20,GtcTheme.Text,true);
         if(Run.Average.HasValue)text(TrainingMath.Delta(Run.Average.Value-Run.Options.Target),325,65,14,AnalysisLegend.Point(true,Run.Average.Value,Run.Options.Target,Run.Options.Tolerance),true);
+        if(compact)return;
         var last=Run.Laps.LastOrDefault();if(last!=null)text("Última "+TimingData.Lap(last.Time)+"  "+TrainingMath.Delta(last.Time-Run.Options.Target),14,94,12,AnalysisLegend.Point(last.Valid&&last.CompleteData,last.Time,Run.Options.Target,Run.Options.Tolerance),false);
         text("Alvo "+TimingData.Lap(Run.Options.Target)+"  ·  Na janela "+Run.InWindow+"/"+Run.Laps.Count+"  ·  Saídas* "+Run.OffTracks,14,123,11,GtcTheme.Muted,false);
         var assessment=TrainingAssessment.Evaluate(Run);text(assessment.Label+(assessment.Score.HasValue?" · Ritmo "+assessment.PacePoints.ToString("0")+"/70 · Limpeza "+assessment.CleanPoints.ToString("0")+"/30":""),14,148,11,GtcTheme.Accent,true);

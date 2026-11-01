@@ -17,13 +17,13 @@ public static class AnalysisLegend {
                 using(var green=new SolidBrush(Green))g.FillEllipse(green,left,top+24,7,7);g.DrawString("Dentro da janela",font,ink,left+14,top+20);
                 using(var fast=new SolidBrush(FastGreen))g.FillEllipse(fast,right,top+24,7,7);g.DrawString("Mais rápida · conta na janela",font,ink,right+14,top+20);
                 using(var red=new SolidBrush(Red))g.FillEllipse(red,left,top+44,7,7);g.DrawString("Acima do limite lento",font,ink,left+14,top+40);
-                g.DrawString("× Inválida / dados incompletos",font,ink,right-2,top+40);
+                g.DrawString("× Inválida / por confirmar / incompleta",font,ink,right-2,top+40);
                 if(pits)g.DrawString("PIT  Boxes · ~ limite aproximado",font,ink,right,top+60);else{using(var pen=new Pen(GtcTheme.Accent,1.5f))g.DrawEllipse(pen,right,top+64,9,9);g.DrawString("Saída de pista estimada",font,ink,right+16,top+60);}
                 g.DrawString("Os dois verdes cumprem o ritmo. Sem tempo: sem ponto.",font,muted,left,top+82);return;
             }
             if(compared){using(var green=new SolidBrush(Green))g.FillEllipse(green,left,top+24,7,7);g.DrawString(window?"Dentro do intervalo aceitável":"Igual ou mais rápido que a referência",font,ink,left+14,top+20);using(var red=new SolidBrush(Red))g.FillEllipse(red,right,top+24,7,7);g.DrawString(window?"Fora do intervalo aceitável":"Mais lento que a referência",font,ink,right+14,top+20);}
             else{using(var dot=new SolidBrush(GtcTheme.Text))g.FillEllipse(dot,left,top+24,7,7);g.DrawString("Volta válida · sem comparação de tempo",font,ink,left+14,top+20);}
-            g.DrawString("×",font,ink,left-2,top+40);g.DrawString("Inválida / dados incompletos",font,ink,left+14,top+40);
+            g.DrawString("×",font,ink,left-2,top+40);g.DrawString("Inválida / por confirmar / incompleta",font,ink,left+14,top+40);
             if(pits)g.DrawString("PIT  Boxes · ~ limite aproximado",font,ink,right,top+40);else{using(var pen=new Pen(GtcTheme.Accent,1.5f))g.DrawEllipse(pen,right,top+44,9,9);g.DrawString("Saída de pista estimada",font,ink,right+16,top+40);}
             g.DrawString(pits?"○ Branco: volta selecionada · Sem ponto: tempo em falta.":"Voltas e setores sem tempo disponível ficam sem ponto.",font,muted,left,top+62);
         }

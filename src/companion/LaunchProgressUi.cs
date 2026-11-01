@@ -20,7 +20,7 @@ public sealed partial class CompanionWindow {
     DateTime launchStarted;
     int currentPage;
     void ResizeForPage(int index){
-        int[] overlayHeights={530,630,650,650};int[] heights={700,540,linkEditing?740:710,overlayHeights[currentOverlayTab],720,720,800,700};int height=heights[Math.Max(0,Math.Min(7,index))]+(progressSteps!=null&&progressSteps.Visible?52:0);
+        int[] overlayHeights={530,630,650,650,800};int[] heights={700,540,linkEditing?740:710,overlayHeights[currentOverlayTab],720,720,800,700};int height=heights[Math.Max(0,Math.Min(7,index))]+(progressSteps!=null&&progressSteps.Visible?52:0);
         var area=Screen.FromControl(this).WorkingArea;ClientSize=new Size(Math.Max(P(720),ClientSize.Width),Math.Min(P(height),area.Height-P(50)));
         if(IsHandleCreated&&Location.X>-10000&&Location.Y>-10000)Location=new Point(Math.Max(area.Left,Math.Min(Left,area.Right-Width)),Math.Max(area.Top,Math.Min(Top,area.Bottom-Height)));
     }

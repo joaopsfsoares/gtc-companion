@@ -18,7 +18,15 @@ public sealed class DriverLapPoint {
     public double? S1 {get;set;}
     public double? S2 {get;set;}
     public double? S3 {get;set;}
-    public bool Clean {get{return Valid==true&&Pit==false&&Complete;}}
+    public string DataSource {get;set;}
+    public bool PossiblyInvalid {get;set;}
+    public string TireCompound {get;set;}
+    public double? TireFL {get;set;}
+    public double? TireFR {get;set;}
+    public double? TireRL {get;set;}
+    public double? TireRR {get;set;}
+    public bool Clean {get{return Valid==true&&Pit==false&&Complete&&!PossiblyInvalid;}}
+    public DriverLapPoint Copy(){return (DriverLapPoint)MemberwiseClone();}
 }
 public sealed class DriverPitVisit {
     public int EntryAfterLap {get;set;}
@@ -55,7 +63,7 @@ public sealed class DriverHistoryRecord {
         if(point==null||point.Number<1||point.Number>100000||!TrainingMath.Positive(point.Time)||point.Time>7200)return;
         var old=Laps.FirstOrDefault(l=>l.Number==point.Number);
         if(old==null){Laps.Add(point);DataRevision++;}
-        else if(point.Complete||!old.Complete){if(old.Time!=point.Time||old.Complete!=point.Complete||point.Valid.HasValue&&old.Valid!=point.Valid||point.Pit.HasValue&&old.Pit!=point.Pit||point.AtUtc.HasValue&&old.AtUtc!=point.AtUtc||point.S1.HasValue&&old.S1!=point.S1||point.S2.HasValue&&old.S2!=point.S2||point.S3.HasValue&&old.S3!=point.S3)DataRevision++;old.Time=point.Time;old.Complete=point.Complete;old.Valid=point.Valid??old.Valid;old.Pit=point.Pit??old.Pit;old.AtUtc=point.AtUtc??old.AtUtc;old.S1=point.S1??old.S1;old.S2=point.S2??old.S2;old.S3=point.S3??old.S3;}
+        else if(point.Complete||!old.Complete){if(old.Time!=point.Time||old.Complete!=point.Complete||point.Valid.HasValue&&old.Valid!=point.Valid||point.Pit.HasValue&&old.Pit!=point.Pit||point.AtUtc.HasValue&&old.AtUtc!=point.AtUtc||point.S1.HasValue&&old.S1!=point.S1||point.S2.HasValue&&old.S2!=point.S2||point.S3.HasValue&&old.S3!=point.S3||point.TireCompound!=null&&old.TireCompound!=point.TireCompound||point.TireFL.HasValue&&old.TireFL!=point.TireFL||point.TireFR.HasValue&&old.TireFR!=point.TireFR||point.TireRL.HasValue&&old.TireRL!=point.TireRL||point.TireRR.HasValue&&old.TireRR!=point.TireRR)DataRevision++;old.Time=point.Time;old.Complete=point.Complete;old.Valid=point.Valid??old.Valid;old.Pit=point.Pit??old.Pit;old.AtUtc=point.AtUtc??old.AtUtc;old.S1=point.S1??old.S1;old.S2=point.S2??old.S2;old.S3=point.S3??old.S3;old.TireCompound=point.TireCompound??old.TireCompound;old.TireFL=point.TireFL??old.TireFL;old.TireFR=point.TireFR??old.TireFR;old.TireRL=point.TireRL??old.TireRL;old.TireRR=point.TireRR??old.TireRR;}
         Laps=Laps.OrderBy(l=>l.Number).TakeLastCompat(1500).ToList();
     }
     public List<DriverPitMarker> Markers(){

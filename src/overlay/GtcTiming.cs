@@ -173,15 +173,19 @@ public sealed partial class TimingOverlay : Form {
         if(m.Msg == 0x21) { m.Result = new IntPtr(3); return; }
         base.WndProc(ref m);
     }
-    void ToggleView() { settings.Compact = !settings.Compact; offset = 0; ResizeOverlay(); SaveSettings(); Invalidate(); }
-    void ToggleHidden() { userHidden = !userHidden; if(userHidden)Hide(); else Show(); }
+    void ToggleView() { settings.Compact = !settings.Compact; offset = 0; ResizeOverlay(); SaveSettings(); Invalidate();SendStintShortcut("compact",settings.Compact); }
+    void SendStintShortcut(string command,bool value){
+        string companion=Environment.GetEnvironmentVariable("GTC_COMPANION_DATA");if(string.IsNullOrWhiteSpace(companion))return;
+        try{string directory=Path.Combine(companion,"stint-commands");Directory.CreateDirectory(directory);string target=Path.Combine(directory,DateTime.UtcNow.Ticks.ToString("D19")+"-"+Guid.NewGuid().ToString("N")+".txt");File.WriteAllText(target+".tmp",command+"="+(value?"1":"0"));File.Move(target+".tmp",target);}catch(Exception){}
+    }
+    void ToggleHidden() { userHidden = !userHidden; if(userHidden)Hide(); else Show();SendStintShortcut("visible",!userHidden); }
     void ToggleLock() {
         if(!locked&&dragging)FinishMove();
         locked = !locked;
         finishPressed=false;Capture=false;Cursor=locked?Cursors.Default:Cursors.SizeAll;
         int style = GetWindowLong(Handle,-20);
         SetWindowLong(Handle,-20,locked ? style|ExTransparent : style&~ExTransparent);
-        if(userHidden){userHidden=false;Show();} Invalidate();
+        if(userHidden){userHidden=false;Show();SendStintShortcut("visible",true);} Invalidate();SendStintShortcut("locked",locked);
     }
     List<int> Indexes() { return TimingData.VisibleIndexes(rows,settings.Player,settings.Compact,offset,settings.PilotsAbove,settings.PilotsBelow); }
     LiveLapView PersonalIdeal(){return driverIdeals.Find(rows.FirstOrDefault(row=>TimingData.Normalize(row.driverName)==TimingData.Normalize(settings.Player)),snapshot==null||snapshot.activeRound==null?"":snapshot.activeRound.trackName)??lapModel.Ideal;}
@@ -242,7 +246,7 @@ public sealed partial class TimingOverlay : Form {
             try{
                 File.Move(file,processing);var patch=json.Deserialize<OverlayPatch>(File.ReadAllText(processing));if(patch==null)continue;
                 if(!ApplyShortcutRequest(patch))continue;
-                patch.Apply(settings);poll.Interval=settings.RefreshSeconds*1000;Opacity=settings.OpacityPercent/100d;
+                bool previousCompact=settings.Compact;patch.Apply(settings);if(previousCompact!=settings.Compact)SendStintShortcut("compact",settings.Compact);poll.Interval=settings.RefreshSeconds*1000;Opacity=settings.OpacityPercent/100d;
                 if(patch.Locked.HasValue&&locked!=patch.Locked.Value)ToggleLock();
                 if(patch.Visible.HasValue&&(!userHidden)!=patch.Visible.Value)ToggleHidden();
                 ResizeOverlay();ApplyPosition();SaveSettings();UpdateShortcutLabels();Invalidate();

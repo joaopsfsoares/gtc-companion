@@ -20,7 +20,7 @@ public static class DriverLapAnalysis {
     }
     public static string Format(double? value,LapMetric metric){return !value.HasValue?"—":metric==LapMetric.Lap?TimingData.Lap(value.Value):value.Value.ToString("0.000",CultureInfo.GetCultureInfo("pt-PT"))+" s";}
     public static DriverLapPoint Reference(IEnumerable<DriverLapPoint> laps){return laps.Where(l=>l.Clean).OrderBy(l=>l.Time).ThenBy(l=>l.Number).FirstOrDefault();}
-    public static TrainingLap Reference(IEnumerable<TrainingLap> laps){return laps.Where(l=>l.Valid&&l.CompleteData).OrderBy(l=>l.Time).ThenBy(l=>l.Number).FirstOrDefault();}
+    public static TrainingLap Reference(IEnumerable<TrainingLap> laps){return laps.Where(l=>l.Valid&&l.CompleteData&&!l.PossiblyInvalid).OrderBy(l=>l.Time).ThenBy(l=>l.Number).FirstOrDefault();}
     public static double? Mean(IEnumerable<DriverLapPoint> laps,LapMetric metric){var values=laps.Where(l=>l.Clean).Select(l=>Value(l,metric)).Where(v=>v.HasValue).Select(v=>v.Value).ToList();return values.Count==0?(double?)null:values.Average();}
     public static string SectorDelta(DriverLapPoint lap,DriverLapPoint reference,LapMetric metric){var value=Value(lap,metric);var baseline=Value(reference,metric);return value.HasValue&&baseline.HasValue?TrainingMath.Delta(value.Value-baseline.Value):"—";}
     public static void CaptureSectors(TrainingLap lap,LiveSample sample,bool timed){

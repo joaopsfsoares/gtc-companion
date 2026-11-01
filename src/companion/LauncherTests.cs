@@ -45,7 +45,9 @@ public static class LauncherTests {
         SynchronizationContext.SetSynchronizationContext(null);
         ComponentSetupTests.Run();
         TrainingTests.Run();
+        SynchronizationContext.SetSynchronizationContext(null);
         DriverHistoryTests.Run();
+        GtcHistoryMergeTests.Run();
         SourcePriorityTests.Run();
         LapAnalysisTests.Run();
         RecordSharingTests.Run();

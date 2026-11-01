@@ -18,6 +18,7 @@ public sealed partial class CompanionWindow {
     bool syncingOverlay;
     Action refreshOverlay;
     Action<int> selectOverlayTab;
+    Action<bool> overlayStintLayout;
     int currentOverlayTab;
     readonly System.Windows.Forms.Timer overlayTimer=new System.Windows.Forms.Timer{Interval=500};
     string OverlayRoot{get{return CompetitionProfiles.ControlDirectory(settings);}}
@@ -38,20 +39,21 @@ public sealed partial class CompanionWindow {
     }
     void OpenOverlay(bool move){
         StopCountdown();ReadInputs();if(string.IsNullOrWhiteSpace(settings.Driver)){Report("Indica primeiro o teu nome de piloto.");return;}
-        try{LaunchEngine.StartOverlay(settings,true);if(move)SendOverlay(new OverlayPatch{Locked=false,Visible=true},true);else SendOverlay(new OverlayPatch{Visible=true},true);var keys=OverlayShortcuts.Normalize(ReadOverlay().Shortcuts);Report(move?"Arrasta o overlay. "+(keys.Move.Enabled?keys.Move+" termina o ajuste.":"Usa o botão Concluir para terminar."):"Overlay aberto para pré-visualização.");}
+        try{LaunchEngine.StartOverlay(settings,true);if(move)SendOverlay(new OverlayPatch{Locked=false,Visible=true},true);else SendOverlay(new OverlayPatch{Visible=true},true);ShowSharedStint(move);var keys=OverlayShortcuts.Normalize(ReadOverlay().Shortcuts);Report(move?"Arrasta os overlays. "+(keys.Move.Enabled?keys.Move+" termina o ajuste.":"Usa o botão Concluir para terminar."):"Overlays abertos para pré-visualização.");}
         catch(Exception ex){Report(ex.Message);}
     }
-    void CreateOverlayPage(TableLayoutPanel stack){
+    void CreateOverlayPage(TableLayoutPanel stack,Panel stintPage){
         var prefs=ReadOverlay();syncingOverlay=true;
         stack.Dock=DockStyle.Fill;stack.AutoSize=false;stack.RowCount=3;stack.RowStyles.Clear();stack.RowStyles.Add(new RowStyle(SizeType.AutoSize));stack.RowStyles.Add(new RowStyle(SizeType.AutoSize));stack.RowStyles.Add(new RowStyle(SizeType.Percent,100));
         var tabs=new FlowLayoutPanel{AutoSize=true,Dock=DockStyle.Top,FlowDirection=FlowDirection.LeftToRight,WrapContents=false,Margin=new Padding(0,0,0,P(12))};stack.Controls.Add(tabs);
         var host=new Panel{Dock=DockStyle.Fill,Margin=Padding.Empty};stack.Controls.Add(host);
-        var pages=new Panel[4];var contents=new TableLayoutPanel[4];var nav=new Button[4];string[] names={"Aparência","Classificação","Estado","Atalhos"};
-        for(int i=0;i<4;i++){
+        var pages=new Panel[5];var contents=new TableLayoutPanel[5];var nav=new Button[5];string[] names={"Aparência","Classificação","Estado","Atalhos","Stint"};
+        for(int i=0;i<5;i++){
             int index=i;pages[i]=new Panel{Dock=DockStyle.Fill,AutoScroll=true,Visible=false};contents[i]=new TableLayoutPanel{Dock=DockStyle.Top,AutoSize=true,ColumnCount=1,Margin=Padding.Empty};contents[i].ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));pages[i].Controls.Add(contents[i]);host.Controls.Add(pages[i]);
-            nav[i]=Button(names[i],130);nav[i].Margin=new Padding(0,0,P(6),0);tabs.Controls.Add(nav[i]);nav[i].Click+=(s,e)=>selectOverlayTab(index);
+            nav[i]=Button(names[i],104);nav[i].Margin=new Padding(0,0,P(5),0);tabs.Controls.Add(nav[i]);nav[i].Click+=(s,e)=>selectOverlayTab(index);
         }
-        selectOverlayTab=index=>{currentOverlayTab=index;for(int i=0;i<4;i++){pages[i].Visible=i==index;nav[i].BackColor=i==index?GtcTheme.AccentSurface:GtcTheme.Input;nav[i].ForeColor=i==index?GtcTheme.Accent:GtcTheme.Text;}pages[index].BringToFront();if(currentPage==3)ResizeForPage(3);if(refreshOverlay!=null)refreshOverlay();};
+        pages[4].Controls.Clear();pages[4].AutoScroll=false;stintPage.Dock=DockStyle.Fill;stintPage.Visible=true;pages[4].Controls.Add(stintPage);
+        selectOverlayTab=index=>{currentOverlayTab=index;for(int i=0;i<5;i++){pages[i].Visible=i==index;nav[i].BackColor=i==index?GtcTheme.AccentSurface:GtcTheme.Input;nav[i].ForeColor=i==index?GtcTheme.Accent:GtcTheme.Text;}pages[index].BringToFront();if(currentPage==3){if(overlayStintLayout!=null)overlayStintLayout(index==4);ResizeForPage(3);}if(refreshOverlay!=null)refreshOverlay();};
         Func<int,string,TableLayoutPanel> card=(page,title)=>{
             var c=new TableLayoutPanel{Dock=DockStyle.Top,AutoSize=true,ColumnCount=2,RowCount=1,Padding=new Padding(P(12)),Margin=new Padding(0,0,0,P(12)),BackColor=GtcTheme.Surface};c.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,54));c.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,46));c.RowStyles.Add(new RowStyle(SizeType.Absolute,P(23)));
             var label=TextLabel(title,11,true);label.ForeColor=GtcTheme.Muted;c.Controls.Add(label,0,0);c.SetColumnSpan(label,2);contents[page].Controls.Add(c);return c;
@@ -71,11 +73,11 @@ public sealed partial class CompanionWindow {
         var sliderPanel=new TableLayoutPanel{ColumnCount=2,RowCount=1,Width=P(195),Height=P(34),Margin=Padding.Empty};sliderPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));sliderPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,P(43)));
         var percent=TextLabel((100-prefs.OpacityPercent)+"%",12);percent.Dock=DockStyle.Fill;percent.TextAlign=ContentAlignment.MiddleRight;
         var slider=new GtcSettingsSlider{Minimum=0,Maximum=90,Value=Math.Max(0,Math.Min(90,100-prefs.OpacityPercent)),Dock=DockStyle.Fill,BackColor=GtcTheme.Surface};sliderPanel.Controls.Add(slider,0,0);sliderPanel.Controls.Add(percent,1,0);row(appearance,"Transparência",sliderPanel);
-        slider.ValueChanged+=(s,e)=>{percent.Text=slider.Value+"%";SendOverlay(new OverlayPatch{OpacityPercent=100-slider.Value});};
+        slider.ValueChanged+=(s,e)=>{percent.Text=slider.Value+"%";SendOverlay(new OverlayPatch{OpacityPercent=100-slider.Value});if(!syncingOverlay&&!building&&!PreviewOnly)SetSharedStintOpacity(100-slider.Value);};
         var actions=new FlowLayoutPanel{AutoSize=true,Dock=DockStyle.Top,FlowDirection=FlowDirection.LeftToRight,WrapContents=true,Margin=new Padding(0,0,0,P(10))};contents[0].Controls.Add(actions);
         var preview=Button("Mostrar overlay",150);preview.Margin=new Padding(0,0,P(8),0);actions.Controls.Add(preview);preview.Click+=(s,e)=>OpenOverlay(false);
-        var move=Button("Mover overlay",150);actions.Controls.Add(move);bool unlocked=false;move.Click+=(s,e)=>{if(unlocked)SendOverlay(new OverlayPatch{Locked=true},true);else OpenOverlay(true);};
-        var movementHint=TextLabel("Arrasta o overlay para uma posição personalizada.\nCtrl+Alt+O termina o ajuste; Ctrl+Alt+G muda a vista.",12);movementHint.ForeColor=GtcTheme.Muted;movementHint.MaximumSize=new Size(P(470),0);contents[0].Controls.Add(movementHint);
+        var move=Button("Mover overlay",150);actions.Controls.Add(move);bool unlocked=false;move.Click+=(s,e)=>{if(unlocked){SendOverlay(new OverlayPatch{Locked=true},true);SetSharedStintMove(false);}else OpenOverlay(true);};
+        var movementHint=TextLabel("Arrasta cada overlay para uma posição personalizada.\nCtrl+Alt+O termina o ajuste; Ctrl+Alt+G muda a vista.",12);movementHint.ForeColor=GtcTheme.Muted;movementHint.MaximumSize=new Size(P(470),0);contents[0].Controls.Add(movementHint);
         var view=card(1,"VISTA COMPACTA");var compact=check(prefs.Compact);row(view,"Ativar vista compacta",compact);var above=number(prefs.PilotsAbove,0,10);var below=number(prefs.PilotsBelow,0,10);row(view,"Pilotos acima",above);row(view,"Pilotos abaixo",below);
         Action nearby=()=>{above.Enabled=compact.Checked;below.Enabled=compact.Checked;};nearby();compact.CheckedChanged+=(s,e)=>{nearby();SendOverlay(new OverlayPatch{Compact=compact.Checked});};above.ValueChanged+=(s,e)=>SendOverlay(new OverlayPatch{PilotsAbove=(int)above.Value});below.ValueChanged+=(s,e)=>SendOverlay(new OverlayPatch{PilotsBelow=(int)below.Value});
         var details=card(1,"VOLTAS E PRESENÇA EM PISTA");var lapComparison=choice(new object[]{"Recorde pessoal","Volta anterior"},prefs.LapComparison);row(details,"Comparar diferencial com",lapComparison);lapComparison.SelectedIndexChanged+=(s,e)=>SendOverlay(new OverlayPatch{LapComparison=lapComparison.SelectedIndex});var previousLap=check(prefs.ShowPreviousLap);row(details,"Mostrar volta anterior",previousLap);previousLap.CheckedChanged+=(s,e)=>SendOverlay(new OverlayPatch{ShowPreviousLap=previousLap.Checked});var idealLap=check(prefs.ShowIdealLap);row(details,"Mostrar volta ideal",idealLap);idealLap.CheckedChanged+=(s,e)=>SendOverlay(new OverlayPatch{ShowIdealLap=idealLap.Checked});var driverIdeals=check(prefs.ShowDriverIdealLaps);row(details,"Ideal observada de cada piloto",driverIdeals);driverIdeals.CheckedChanged+=(s,e)=>SendOverlay(new OverlayPatch{ShowDriverIdealLaps=driverIdeals.Checked});var activity=check(prefs.ShowDriverActivity);row(details,"Indicadores nos nomes",activity);activity.CheckedChanged+=(s,e)=>SendOverlay(new OverlayPatch{ShowDriverActivity=activity.Checked});
@@ -93,8 +95,8 @@ public sealed partial class CompanionWindow {
         refreshOverlay=()=>{
             if(syncingOverlay||IsDisposed)return;syncingOverlay=true;
             try{
-                var current=ReadOverlay();position.SelectedIndex=Math.Max(0,Math.Min(9,current.PositionAnchor));
-                var shortcuts=OverlayShortcuts.Normalize(current.Shortcuts);movementHint.Text="Arrasta o overlay para uma posição personalizada.\n"+(shortcuts.Move.Enabled?shortcuts.Move+" termina o ajuste.":"Usa Concluir para terminar o ajuste.")+(shortcuts.View.Enabled?" "+shortcuts.View+" muda a vista.":"");if(refreshShortcuts!=null)refreshShortcuts();
+                var current=ReadOverlay();position.SelectedIndex=Math.Max(0,Math.Min(9,current.PositionAnchor));if(trainingHud!=null&&!trainingHud.IsDisposed&&trainingHud.IsCompact!=current.Compact){trainingHud.SetCompact(current.Compact);ApplyTrainingPosition();}
+                var shortcuts=OverlayShortcuts.Normalize(current.Shortcuts);movementHint.Text="Arrasta cada overlay para uma posição personalizada.\n"+(shortcuts.Move.Enabled?shortcuts.Move+" termina o ajuste.":"Usa Concluir para terminar o ajuste.")+(shortcuts.View.Enabled?" "+shortcuts.View+" muda a vista.":"");if(refreshShortcuts!=null)refreshShortcuts();
                 if(!slider.Capture)slider.Value=Math.Max(0,Math.Min(90,100-current.OpacityPercent));
                 lapComparison.SelectedIndex=Math.Max(0,Math.Min(1,current.LapComparison));previousLap.Checked=current.ShowPreviousLap;idealLap.Checked=current.ShowIdealLap;driverIdeals.Checked=current.ShowDriverIdealLaps;activity.Checked=current.ShowDriverActivity;compact.Checked=current.Compact;above.Value=Math.Max(0,Math.Min(10,current.PilotsAbove));below.Value=Math.Max(0,Math.Min(10,current.PilotsBelow));movement.Checked=current.ShowPositionChanges;reference.SelectedIndex=Math.Max(0,Math.Min(2,current.PositionReference));hours.Value=Math.Max(1,Math.Min(168,current.PositionReferenceHours));interval.Value=Math.Max(5,Math.Min(60,current.RefreshSeconds));nearby();references();
                 var status=CompanionStore.Read<Dictionary<string,object>>(Path.Combine(OverlayRoot,"status.json"));bool running=LaunchEngine.Running("GTC-Timing");

@@ -23,10 +23,16 @@ public static class EngineIntegrationTests {
         using(var page=new NativeEnginePage("tiny",()=>"fixture.exe",()=>{},1,profile=>settings)){page.LoadSettings();if(Controls(page)>140)throw new Exception("A página deve criar apenas os controlos visíveis, e não todos os widgets.");}
         string originalRoot=CompanionStore.Root;CompanionStore.Root=Path.Combine(root,"companion");
         try{
-            var launch=new LaunchSettings{StartTinyPedal=true,StartCrewChief=false};
+            var launch=new LaunchSettings{StartTinyPedal=true,StartCrewChief=false,Driver="Test driver"};var profile=new CompetitionProfile{Name="Fixture",TimingId=110};launch.Competitions.Add(profile);launch.SelectedCompetitionId=profile.Id;
+            string timingRoot=CompetitionProfiles.DataDirectory(profile);Directory.CreateDirectory(timingRoot);File.WriteAllText(Path.Combine(timingRoot,"leaderboard-cache.json"),CompanionStore.Json.Serialize(new CachedSnapshot{UpdatedUtc=DateTime.UtcNow,Data=new TimingSnapshot{activeRound=new RoundInfo{id="fixture",trackName="Test track"},rows=new System.Collections.Generic.List<TimingRow>{new TimingRow{driverName="Test driver",vehicleClass="Cup",bestLapTime=82.7}}}}));
             using(var window=new CompanionWindow(launch,true)){
+                window.PreviewOnly=true;window.ShowInTaskbar=false;window.StartPosition=FormStartPosition.Manual;window.Location=new System.Drawing.Point(-20000,-20000);window.Show();
                 var all=Descendants(window).ToList();
                 if(all.OfType<Button>().Any(b=>b.Text=="Aplicações"))throw new Exception("A navegação não deve apresentar a página Aplicações.");
+                if(all.OfType<Button>().Any(b=>b.Text=="Treino"))throw new Exception("O treino deve estar dentro do overlay.");
+                window.ShowOverlaySettings(4);all=Descendants(window).ToList();
+                if(!all.OfType<Button>().Any(b=>b.Text=="Stint")||!all.OfType<Button>().Any(b=>b.Text=="Aceitar sugestão"))throw new Exception("O separador Stint e a sugestão devem estar disponíveis no overlay.");
+                var suggested=all.OfType<Button>().Single(b=>b.Text=="Aceitar sugestão");if(!suggested.Enabled)throw new Exception("Recorde GTC válido deve permitir aceitar sugestão.");suggested.PerformClick();var training=CompanionStore.Read<TrainingOptions>(Path.Combine("training","options.json"));if(training==null||Math.Abs(training.Target-83.1135)>.001||Math.Abs(training.Tolerance-.5)>.001)throw new Exception("Aceitar sugestão deve guardar o alvo e a janela calculados.");
                 var tiny=all.OfType<CheckBox>().Single(c=>c.Text=="Abrir o TinyPedal com a sessão");
                 var crew=all.OfType<CheckBox>().Single(c=>c.Text=="Abrir o Crew Chief com a sessão");
                 if(!tiny.Checked||crew.Checked||tiny.Parent==crew.Parent)throw new Exception("Cada motor deve mostrar a sua própria preferência guardada.");

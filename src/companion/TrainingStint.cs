@@ -14,6 +14,7 @@ public sealed class TrainingOptions {
     public bool ShowHud {get;set;}
     public int HudX {get;set;}
     public int HudY {get;set;}
+    public int HudAnchor {get;set;}
     public int Opacity {get;set;}
     public TrainingOptions(){Amount=15;Target=90;Tolerance=.5;ShowHud=true;HudX=-1;HudY=-1;Opacity=90;}
     public TrainingOptions Copy(){return (TrainingOptions)MemberwiseClone();}
@@ -28,8 +29,19 @@ public sealed class TrainingLap {
     public double? S1 {get;set;}
     public double? S2 {get;set;}
     public double? S3 {get;set;}
+    public int? SessionLap {get;set;}
+    public DateTime? CompletedUtc {get;set;}
+    public string DataSource {get;set;}
+    public bool PossiblyInvalid {get;set;}
+    public string TireCompound {get;set;}
+    public double? TireFL {get;set;}
+    public double? TireFR {get;set;}
+    public double? TireRL {get;set;}
+    public double? TireRR {get;set;}
+    public TrainingLap Copy(){return (TrainingLap)MemberwiseClone();}
 }
 public sealed class TrainingRun {
+    [System.Web.Script.Serialization.ScriptIgnore]public bool GtcMatched;
     public string Id {get;set;}
     public TrainingOptions Options {get;set;}
     public string Track {get;set;}
@@ -55,6 +67,7 @@ public static class TrainingMath {
     public static bool WithinWindow(double time,double target,double tolerance){return Positive(time)&&Positive(target)&&!double.IsNaN(tolerance)&&!double.IsInfinity(tolerance)&&tolerance>=0&&time<=target+tolerance+.000001;}
     public static bool FasterThanWindow(double time,double target,double tolerance){return WithinWindow(time,target,tolerance)&&time<target-tolerance-.000001;}
     public static double RacePace(double best,double marginPercent){if(!Positive(best)||best<10||best>1800||double.IsNaN(marginPercent)||marginPercent<0||marginPercent>10)throw new ArgumentException("Indica uma volta válida e uma margem entre 0 e 10%.");double pace=best*(1+marginPercent/100);if(pace>1800)throw new ArgumentException("O alvo calculado excede 30 minutos.");return pace;}
+    public static double SuggestedTolerance(double best){if(!Positive(best)||best<10||best>1800)throw new ArgumentException("Indica uma volta válida.");return Math.Max(.10,Math.Min(30,Math.Round(best*.006,2,MidpointRounding.AwayFromZero)));}
     public static bool ParsePace(string value,out double seconds){
         seconds=0;string[] fields=(value??"").Trim().Replace(',','.').Split(':');double tail;int minutes;
         if(fields.Length!=2||!int.TryParse(fields[0],NumberStyles.None,CultureInfo.InvariantCulture,out minutes)||!double.TryParse(fields[1],NumberStyles.AllowDecimalPoint,CultureInfo.InvariantCulture,out tail)||tail<0||tail>=60)return false;
@@ -103,7 +116,7 @@ public sealed class TrainingModel {
             // Invalidated laps can have no official LastLap, or retain an older
             // lap time. The two observed line crossings still give their duration.
             bool gameTimed=valid&&TrainingMath.Positive(sample.LastLap)&&Math.Abs(sample.LastLap-duration)<.25;
-            var lap=new TrainingLap{Number=Run.Laps.Count+1,Time=gameTimed?sample.LastLap:duration,Valid=valid&&gameTimed,CompleteData=completeData,OffTracks=lapOffTracks};DriverLapAnalysis.CaptureSectors(lap,sample,gameTimed);Run.Laps.Add(lap);Run.Elapsed=Math.Max(0,sample.LapStart-started+pauseAfterLine);Revision++;
+            var lap=new TrainingLap{Number=Run.Laps.Count+1,Time=gameTimed?sample.LastLap:duration,Valid=valid&&gameTimed,CompleteData=completeData,OffTracks=lapOffTracks,SessionLap=countDelta==1?(int?)sample.Laps:null,CompletedUtc=DateTime.UtcNow};DriverLapAnalysis.CaptureSectors(lap,sample,gameTimed);Run.Laps.Add(lap);Run.Elapsed=Math.Max(0,sample.LapStart-started+pauseAfterLine);Revision++;
             if((!Run.Options.Minutes&&Run.Laps.Count>=Run.Options.Amount)||(Run.Options.Minutes&&Run.Elapsed>=Run.Options.Amount*60-.001)){Finish("completed","Objetivo de duração concluído.");return;}
             lapCounter=sample.Laps;lapStart=sample.LapStart;valid=sample.CountLapFlag==2;completeData=sample.SessionTime-sample.LapStart<=3;lapOffTracks=0;
         }else if(sample.Laps!=lapCounter){Stop("Contador de voltas alterado.",true);return;}

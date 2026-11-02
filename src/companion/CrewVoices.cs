@@ -44,14 +44,16 @@ public static class CrewVoices {
         if(!file.StartsWith(root,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("O pacote contém um caminho inválido.");
         if(!new[]{".wav",".txt",".csv",".json",".xml",".ogg",".ini"}.Contains(Path.GetExtension(file).ToLowerInvariant()))throw new InvalidDataException("O pacote contém um tipo de ficheiro inesperado.");return file;
     }
+    // Official sound packs may include Windows shortcuts, which are not audio data.
+    static bool IgnoredEntry(ZipArchiveEntry entry){return Path.GetExtension(entry.Name).Equals(".lnk",StringComparison.OrdinalIgnoreCase);}
     public static void ExtractAudio(string archive,string destination){ExtractAudio(archive,destination,CancellationToken.None);}
     static void ExtractAudio(string archive,string destination,CancellationToken cancel){
         string root=Path.GetFullPath(destination).TrimEnd(Path.DirectorySeparatorChar)+Path.DirectorySeparatorChar;
         using(var zip=ZipFile.OpenRead(archive)){
             // Validate every entry before extracting any file.
-            foreach(var entry in zip.Entries){if(!string.IsNullOrEmpty(entry.Name))EntryPath(root,entry.FullName);}
+            foreach(var entry in zip.Entries){if(!string.IsNullOrEmpty(entry.Name)&&!IgnoredEntry(entry))EntryPath(root,entry.FullName);}
             foreach(var entry in zip.Entries){
-                cancel.ThrowIfCancellationRequested();if(string.IsNullOrEmpty(entry.Name))continue;string file=EntryPath(root,entry.FullName);
+                cancel.ThrowIfCancellationRequested();if(string.IsNullOrEmpty(entry.Name)||IgnoredEntry(entry))continue;string file=EntryPath(root,entry.FullName);
                 CheckLinks(root,file);Directory.CreateDirectory(Path.GetDirectoryName(file));entry.ExtractToFile(file,true);
             }
         }
@@ -62,7 +64,7 @@ public static class CrewVoices {
     static int ArchiveVersion(string file,string marker){
         using(var zip=ZipFile.OpenRead(file)){
             string root=Path.GetFullPath(Path.Combine(CompanionStore.Root,"archive-validation"))+Path.DirectorySeparatorChar;
-            foreach(var entry in zip.Entries)if(!string.IsNullOrEmpty(entry.Name))EntryPath(root,entry.FullName);
+            foreach(var entry in zip.Entries)if(!string.IsNullOrEmpty(entry.Name)&&!IgnoredEntry(entry))EntryPath(root,entry.FullName);
             var version=zip.Entries.FirstOrDefault(entry=>entry.FullName.Replace('\\','/').Equals(marker.Replace('\\','/'),StringComparison.OrdinalIgnoreCase));
             if(version==null||version.Length>1024)return -1;
             using(var reader=new StreamReader(version.Open())){int number;return int.TryParse(reader.ReadToEnd().Trim(),NumberStyles.Integer,CultureInfo.InvariantCulture,out number)?number:-1;}
@@ -106,7 +108,7 @@ public static class CrewVoices {
                     string url="https://thecrewchief.org/downloads/"+Uri.EscapeDataString(filename),cache=Path.Combine(CompanionStore.Root,"downloads");Directory.CreateDirectory(cache);string file=Path.Combine(cache,filename);int cached=-1;
                     string marker=Path.GetFileName(VersionFiles[kind]);
                     try{if(File.Exists(file))cached=ArchiveVersion(file,marker);}catch(InvalidDataException){}catch(IOException){}
-                    if(cached<=before||cached>latest){await Download(client,url,file,progress,cancel);cached=ArchiveVersion(file,marker);}
+                    if(cached<=before||cached>latest){await Download(client,url,file,progress,cancel);progress("A verificar "+filename+"…");cached=ArchiveVersion(file,marker);}
                     else progress("A reutilizar o pacote descarregado: "+filename);
                     if(cached<=before||cached>latest)throw new InvalidDataException("O pacote não confirmou uma versão válida. Volta a tentar a instalação.");
                     string staging=Path.Combine(cache,"voice-stage-"+Guid.NewGuid().ToString("N"));

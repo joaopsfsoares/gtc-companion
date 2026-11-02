@@ -47,9 +47,9 @@ public sealed partial class CompanionWindow {
             if(operation!=null)return;if(!plugin.Checked&&!voices.Checked){state.Text="Seleciona pelo menos um componente.";return;}
             operation=new CancellationTokenSource();install.Enabled=false;plugin.Enabled=false;voices.Enabled=false;close.Text="Cancelar";progress.Value=0;progress.Style=ProgressBarStyle.Marquee;state.Text="A preparar a instalação…";
             try{await ComponentSetup.Run(directory,crewExecutable,plugin.Checked,voices.Checked,(id,message)=>{if(dialog.IsDisposed)return;if(id=="plugin")pluginStatus.Text=message;else voicesStatus.Text=message;},operation.Token);state.Text="Instalação concluída. Podes iniciar a sessão.";progress.Value=100;Report("Componentes instalados e verificados.");}
-            catch(OperationCanceledException){state.Text="Instalação cancelada. Podes continuar de onde ficou.";}
-            catch(UnauthorizedAccessException){state.Text="Sem permissão para escrever na pasta do jogo. Os componentes já instalados foram mantidos.";}
-            catch(Exception ex){state.Text=ex.Message;}
+            catch(OperationCanceledException){if(voices.Checked)voicesStatus.Text="Instalação interrompida.";state.Text="Instalação cancelada. Podes continuar de onde ficou.";}
+            catch(UnauthorizedAccessException){if(voices.Checked)voicesStatus.Text="Instalação interrompida.";state.Text="Sem permissão para escrever os ficheiros. Os componentes já instalados foram mantidos.";}
+            catch(Exception ex){if(voices.Checked)voicesStatus.Text="Instalação interrompida.";state.Text=ex.Message;}
             finally{operation.Dispose();operation=null;if(!dialog.IsDisposed){install.Enabled=true;install.Text="Verificar novamente";plugin.Enabled=true;voices.Enabled=File.Exists(crewExecutable);close.Text="Fechar";progress.Style=ProgressBarStyle.Blocks;}}
         };
         dialog.FormClosing+=(s,e)=>{if(operation!=null){operation.Cancel();e.Cancel=true;state.Text="A aguardar o cancelamento…";}};

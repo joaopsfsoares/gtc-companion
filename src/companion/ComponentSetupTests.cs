@@ -27,6 +27,7 @@ public static class ComponentSetupTests {
         using(var stream=new MemoryStream()){
             using(var zip=new ZipArchive(stream,ZipArchiveMode.Create,true)){
                 using(var writer=new StreamWriter(zip.CreateEntry(Path.GetFileName(marker)).Open()))writer.Write(version);
+                using(var output=zip.CreateEntry("voice/numbers/point0/2.lnk").Open())output.WriteByte(1);
                 if(audio)using(var output=zip.CreateEntry("voice/radio_check/test.wav").Open())output.Write(new byte[64],0,64);
                 else using(var output=zip.CreateEntry(marker.Contains("personalisations")?"Fixture/test.wav":"Fixture.wav").Open())output.Write(new byte[64],0,64);
             }return stream.ToArray();
@@ -44,6 +45,7 @@ public static class ComponentSetupTests {
         using(var client=new HttpClient(publisher)){
             Action<string> ignore=message=>{};string first=Path.Combine(root,"first");CrewVoices.Install(first,ignore,CancellationToken.None,client,()=>false).GetAwaiter().GetResult();
             Require(CrewVoices.Ready(first)&&publisher.Downloads==4,"Instalar vozes, nomes e personalizações até às versões atuais");
+            Require(!File.Exists(Path.Combine(first,"voice","numbers","point0","2.lnk")),"Ignorar atalhos incluídos nos pacotes oficiais");
             Require(File.Exists(Path.Combine(first,"driver_names","Fixture.wav"))&&File.Exists(Path.Combine(first,"personalisations","Fixture","test.wav")),"Extrair cada pacote para a pasta esperada pelo Crew Chief");
             CrewVoices.Install(first,ignore,CancellationToken.None,client,()=>true).GetAwaiter().GetResult();Require(publisher.Downloads==4,"Não descarregar nem escrever pacotes atualizados com motor aberto");
             string second=Path.Combine(root,"second");CrewVoices.Install(second,ignore,CancellationToken.None,client,()=>false).GetAwaiter().GetResult();Require(CrewVoices.Ready(second)&&publisher.Downloads==4,"Reutilizar os downloads concluídos da cache");

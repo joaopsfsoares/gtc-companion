@@ -1,6 +1,6 @@
 # Fontes dos componentes incluídos
 
-Os motores são distribuídos sem alterações aos binários. Os avisos originais permanecem em `components`. Este ficheiro indica onde obter o código correspondente das bibliotecas e os respetivos scripts de compilação. As bibliotecas partilhadas podem ser substituídas por versões modificadas compatíveis.
+O executável do TinyPedal é original; a sua biblioteca Python inclui uma integração modificada para aplicar definições em direto. Os ficheiros modificados e respetivos bytecodes estão em `SOURCE.zip/assets/tinypedal-live/`, sob GPL-3.0-only. O `build.ps1` insere esses bytecodes no pacote; para os regenerar, usa Python 3.8.10 e `py_compile` sobre os dois ficheiros `.py`. O executável do Crew Chief mantém-se original. Os avisos originais permanecem em `components`. As bibliotecas partilhadas podem ser substituídas por versões modificadas compatíveis.
 
 - TinyPedal **2.52.0**, GPL-3.0-or-later: `TinyPedal-2.52.0-source.zip`, neste diretório. Inclui o projeto e os submódulos pyACC, pyLMU e pyRfactor2SharedMemory nas revisões fixadas pelo projeto. Origem: https://github.com/TinyPedal/TinyPedal/tree/v2.52.0 . Revisão: `bf43bd5db0cd15f57672e5c75696ced0df020781`.
 - Qt **5.15.2**, LGPLv3 e avisos de terceiros mantidos: código-fonte completo, incluindo o sistema de compilação, em https://download.qt.io/archive/qt/5.15/5.15.2/single/qt-everywhere-src-5.15.2.tar.xz . As DLL estão em `components/TinyPedal/lib/PySide2`.

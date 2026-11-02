@@ -98,7 +98,7 @@ public sealed class NativeEnginePage:UserControl {
         if(invalid.Count>0){save.Enabled=false;status.Text="Corrige os valores assinalados antes de guardar.";return;}
         if(session.Dirty){status.Text="Existem alterações por guardar.";return;}
         if(!string.IsNullOrEmpty(session.Warning)){status.Text=session.Warning;return;}
-        var pending=EngineSettingsQueue.Pending(engine);status.Text=pending.Error??(count>0?count+" alterações guardadas. Serão aplicadas quando o motor estiver fechado.":running?"Motor ativo. Configura os overlays e as preferências nesta página.":"Definições prontas. Inicia o motor para as utilizar.");
+        var pending=EngineSettingsQueue.Pending(engine);status.Text=pending.Error??(count>0?(engine=="tiny"&&running?count+" alterações guardadas. A aguardar aplicação no TinyPedal; perfis inativos são aplicados ao fechar o motor.":count+" alterações guardadas. Serão aplicadas quando o motor estiver fechado."):running?"Motor ativo. Configura os overlays e as preferências nesta página.":"Definições prontas. Inicia o motor para as utilizar.");
     }
     async Task StartEngine(){
         changed();if(session!=null&&session.Dirty){status.Text="Guarda as alterações antes de iniciar o motor.";return;}string exe=executable();if(!File.Exists(exe)){status.Text="Pacote incompleto. Extrai novamente a aplicação com a pasta components.";return;}

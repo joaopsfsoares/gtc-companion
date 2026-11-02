@@ -56,7 +56,26 @@ public static class EngineSettingsQueue {
     }
     public static void ApplyReady(){foreach(string engine in new[]{"tiny","crew"})try{if(Pending(engine).Error==null)Apply(engine);}catch(Exception ex){CompanionStore.Log("Definições "+engine+": "+ex.GetType().Name);}}
     public static void Apply(string engine){Apply(engine,()=>Running(engine));}
+    // The bundled TinyPedal acknowledges only changes that it has saved from
+    // its own UI thread. Preserve any edits made after that acknowledgement.
+    internal static void ReconcileTiny(){
+        string path=Path.Combine(CompanionStore.Root,"engine-live-tiny-ack.json");
+        if(!File.Exists(path))return;
+        var ack=CompanionStore.Read<EnginePendingSettings>("engine-live-tiny-ack.json");
+        if(ack==null)return;
+        var pending=Pending("tiny");
+        if(!string.IsNullOrEmpty(ack.Error))pending.Error=ack.Error;
+        else foreach(var applied in ack.Changes){
+            var current=pending.Changes.FirstOrDefault(x=>string.Equals(x.File,applied.File,StringComparison.OrdinalIgnoreCase)&&x.Xml==applied.Xml&&x.Keys.SequenceEqual(applied.Keys));
+            if(current==null)continue;
+            if(Same(current.Before,applied.Before)&&Same(current.Value,applied.Value))pending.Changes.Remove(current);
+            else if(Same(current.Before,applied.Before))current.Before=applied.Value;
+        }
+        CompanionStore.Write(QueueName("tiny"),pending);
+        File.Delete(path);
+    }
     internal static void Apply(string engine,Func<bool> running){
+        if(engine=="tiny")ReconcileTiny();
         var pending=Pending(engine);if(pending.Changes.Count==0||running())return;
         var migration=CompanionStore.Read<EngineMigration>("engines-migration.json");
         if(migration!=null){

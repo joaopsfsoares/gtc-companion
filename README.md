@@ -55,7 +55,7 @@ As páginas próprias do Companion editam as configurações dos motores origina
 - **Crew Chief:** perfis, nomes e vozes instalados, volumes, dispositivos de áudio, microfone, reconhecimento de voz, spotter e mensagens.
 - **Guardar alterações:** aplica apenas os campos alterados. Com o motor aberto, coloca-os numa fila local para aplicar depois de fechar ou no próximo arranque. Os ficheiros originais são guardados em `backups/engines`. Conflitos com alterações externas exigem recarregar e rever.
 
-Inclui TinyPedal **2.52.0** e Crew Chief **4.19.5.8**, sem alterações aos executáveis. Os pacotes de áudio são descarregados pelo assistente de instalação. Estas páginas cobrem as configurações disponíveis nos perfis; algumas ferramentas continuam a pertencer às aplicações originais.
+Inclui TinyPedal **2.52.0** e Crew Chief **4.19.5.8**. A biblioteca Python do TinyPedal contém uma integração para aplicar alterações ao perfil ativo enquanto o motor está aberto; os respetivos fontes estão em `assets/tinypedal-live`. Os pacotes de áudio são descarregados pelo assistente de instalação. Algumas ferramentas continuam a pertencer às aplicações originais.
 
 Ao arrancar pelo Companion, a janela principal do Crew Chief fica em segundo plano enquanto o motor continua ativo. A janela de carregamento e a janela principal são tratadas separadamente; outras janelas do motor continuam disponíveis para funções que ainda pertençam à aplicação original.
 

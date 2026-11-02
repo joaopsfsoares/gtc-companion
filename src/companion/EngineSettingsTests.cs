@@ -18,6 +18,10 @@ public static class EngineSettingsTests {
         try{
             string file=Path.Combine(temp,"preset.json");File.WriteAllText(file,"{\"radar\":{\"enable\":false,\"opacity\":0.9,\"unknown\":42},\"future\":{\"data\":[1,2]}}");
             var pending=new EnginePendingSettings{Engine="tiny",Changes=new List<EngineSettingChange>{new EngineSettingChange{File=file,Keys=new[]{"radar","enable"},Before=false,Value=true}}};CompanionStore.Write("engine-pending-tiny.json",pending);
+            var acknowledged=new EnginePendingSettings{Changes=new List<EngineSettingChange>{new EngineSettingChange{File=file,Keys=new[]{"radar","enable"},Before=false,Value=true}}};
+            CompanionStore.Write("engine-live-tiny-ack.json",acknowledged);EngineSettingsQueue.ReconcileTiny();if(EngineSettingsQueue.Pending("tiny").Changes.Count!=0)throw new Exception("A confirmação do TinyPedal deve remover a alteração aplicada.");
+            pending.Changes[0].Value=false;CompanionStore.Write("engine-pending-tiny.json",pending);CompanionStore.Write("engine-live-tiny-ack.json",acknowledged);EngineSettingsQueue.ReconcileTiny();var later=EngineSettingsQueue.Pending("tiny").Changes.Single();if(!(bool)later.Before||(bool)later.Value)throw new Exception("Uma edição posterior à confirmação deve permanecer pendente.");
+            pending.Changes[0].Value=true;CompanionStore.Write("engine-pending-tiny.json",pending);
             // An unrelated external modification must survive the merge.
             File.WriteAllText(file,"{\"radar\":{\"enable\":false,\"opacity\":0.8,\"unknown\":42},\"future\":{\"data\":[1,2]}}");
             EngineSettingsQueue.Apply("tiny",()=>true);if(EngineSettingsQueue.Pending("tiny").Changes.Count!=1||!File.ReadAllText(file).Contains("\"enable\":false"))throw new Exception("Não escrever sobre um motor em execução.");

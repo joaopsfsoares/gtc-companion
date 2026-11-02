@@ -23,6 +23,16 @@ public static class EngineIntegrationTests {
         using(var page=new NativeEnginePage("tiny",()=>"fixture.exe",()=>{},1,profile=>settings)){page.LoadSettings();if(Controls(page)>140)throw new Exception("A página deve criar apenas os controlos visíveis, e não todos os widgets.");}
         string originalRoot=CompanionStore.Root;CompanionStore.Root=Path.Combine(root,"companion");
         try{
+            string tinyFile=Path.Combine(root,"autosave-preset.json");File.WriteAllText(tinyFile,"{\"tyre_wear\":{\"enable\":false}}");
+            var liveSettings=new EngineSettingsSession{Engine="tiny",Profile="default.json"};liveSettings.Profiles.Add("default.json");liveSettings.Options.Add(new EngineSetting{Group="tyre_wear",Key="enable",Initial=false,Change=new EngineSettingChange{File=tinyFile,Keys=new[]{"tyre_wear","enable"},Before=false,Value=false}});
+            using(var form=new Form())using(var page=new NativeEnginePage("tiny",()=>"fixture.exe",()=>{},1,selected=>liveSettings)){
+                form.ShowInTaskbar=false;form.StartPosition=FormStartPosition.Manual;form.Location=new System.Drawing.Point(-20000,-20000);form.Controls.Add(page);form.Show();page.LoadSettings();
+                var toggle=Descendants(page).OfType<GtcSettingsCheck>().Single(c=>c.AccessibleName=="Ativar Desgaste dos pneus");toggle.Checked=true;
+                var deadline=DateTime.UtcNow.AddSeconds(3);while(liveSettings.Dirty&&DateTime.UtcNow<deadline){Application.DoEvents();System.Threading.Thread.Sleep(20);}
+                if(liveSettings.Dirty)throw new Exception("Alterar um widget TinyPedal deve guardá-lo automaticamente.");
+                var queued=EngineSettingsQueue.Pending("tiny");var updated=File.ReadAllText(tinyFile);if(!queued.Changes.Any(x=>x.Keys.SequenceEqual(new[]{"tyre_wear","enable"})&&Convert.ToBoolean(x.Value))&&!updated.Contains("true"))throw new Exception("O widget deve ser aplicado ou ficar guardado na fila do motor ativo.");
+                form.Close();
+            }
             var launch=new LaunchSettings{StartTinyPedal=true,StartCrewChief=false,Driver="Test driver"};var profile=new CompetitionProfile{Name="Fixture",TimingId=110};launch.Competitions.Add(profile);launch.SelectedCompetitionId=profile.Id;
             string timingRoot=CompetitionProfiles.DataDirectory(profile);Directory.CreateDirectory(timingRoot);File.WriteAllText(Path.Combine(timingRoot,"leaderboard-cache.json"),CompanionStore.Json.Serialize(new CachedSnapshot{UpdatedUtc=DateTime.UtcNow,Data=new TimingSnapshot{activeRound=new RoundInfo{id="fixture",trackName="Test track"},rows=new System.Collections.Generic.List<TimingRow>{new TimingRow{driverName="Test driver",vehicleClass="Cup",bestLapTime=82.7}}}}));
             using(var window=new CompanionWindow(launch,true)){

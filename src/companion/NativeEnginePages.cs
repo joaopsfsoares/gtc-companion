@@ -38,6 +38,7 @@ public sealed class NativeEnginePage:UserControl {
     readonly ToolTip hints=new ToolTip{AutoPopDelay=12000};
     readonly System.Windows.Forms.Timer searchDelay=new System.Windows.Forms.Timer{Interval=180};
     readonly System.Windows.Forms.Timer stateTimer=new System.Windows.Forms.Timer{Interval=2000};
+    readonly System.Windows.Forms.Timer autoSaveTimer=new System.Windows.Forms.Timer{Interval=900};
     EngineSettingsSession session;
     CancellationTokenSource voiceDownload;
     readonly HashSet<EngineSetting> invalid=new HashSet<EngineSetting>();
@@ -81,11 +82,12 @@ public sealed class NativeEnginePage:UserControl {
         widgets.Click+=(s,e)=>{widgetView=true;pageIndex=0;Render();};preferences.Click+=(s,e)=>{widgetView=false;pageIndex=0;Render();};
         profile.SelectedIndexChanged+=(s,e)=>{if(loading)return;if(session!=null&&session.Dirty){loading=true;profile.SelectedItem=session.Profile;loading=false;status.Text="Guarda as alterações antes de escolher outro perfil.";return;}LoadSettings(Convert.ToString(profile.SelectedItem));};
         group.SelectedIndexChanged+=(s,e)=>{if(!loading){pageIndex=0;Render();}};search.TextChanged+=(s,e)=>{pageIndex=0;searchDelay.Stop();searchDelay.Start();};searchDelay.Tick+=(s,e)=>{searchDelay.Stop();Render();};
-        save.Click+=(s,e)=>{changed();try{if(session==null||invalid.Count>0)return;session.Save();UpdateStatus();}catch(Exception ex){status.Text=ex.Message;}};
+        save.Click+=(s,e)=>{changed();SaveChanges();};autoSaveTimer.Tick+=(s,e)=>{autoSaveTimer.Stop();SaveChanges();};
         start.Click+=async(s,e)=>await StartEngine();VisibleChanged+=(s,e)=>{if(Visible&&session==null)LoadSettings();};stateTimer.Tick+=(s,e)=>{if(Visible&&session!=null)UpdateStatus();};stateTimer.Start();
     }
     public void LoadSettings(string selected=null){
         loading=true;try{
+            invalid.Clear();
             session=loader!=null?loader(selected):engine=="tiny"?EngineSettingsSession.Tiny(executable(),selected):EngineSettingsSession.Crew(executable(),selected);
             profile.Items.Clear();profile.Items.AddRange(session.Profiles.Cast<object>().ToArray());if(!profile.Items.Contains(session.Profile))profile.Items.Add(session.Profile);profile.SelectedItem=session.Profile;
             group.Items.Clear();foreach(string key in session.Options.Select(x=>x.Group).Where(x=>!x.StartsWith("_")).Distinct().OrderBy(Title))group.Items.Add(new Choice{Id=key,Caption=Title(key)});
@@ -96,7 +98,7 @@ public sealed class NativeEnginePage:UserControl {
     void UpdateStatus(){
         if(session==null||voiceDownload!=null)return;int count=EngineSettingsQueue.Pending(engine).Changes.Count;bool running=EngineSettingsQueue.Running(engine);start.Enabled=!running;start.Text=running?"Motor ativo":"Iniciar";save.Enabled=session.Dirty;
         if(invalid.Count>0){save.Enabled=false;status.Text="Corrige os valores assinalados antes de guardar.";return;}
-        if(session.Dirty){status.Text="Existem alterações por guardar.";return;}
+        if(session.Dirty){status.Text=engine=="tiny"?"A guardar alterações…":"Existem alterações por guardar.";return;}
         if(!string.IsNullOrEmpty(session.Warning)){status.Text=session.Warning;return;}
         var pending=EngineSettingsQueue.Pending(engine);status.Text=pending.Error??(count>0?(engine=="tiny"&&running?count+" alterações guardadas. A aguardar aplicação no TinyPedal; perfis inativos são aplicados ao fechar o motor.":count+" alterações guardadas. Serão aplicadas quando o motor estiver fechado."):running?"Motor ativo. Configura os overlays e as preferências nesta página.":"Definições prontas. Inicia o motor para as utilizar.");
     }
@@ -105,7 +107,7 @@ public sealed class NativeEnginePage:UserControl {
         try{BundledEngines.Prepare();EngineSettingsQueue.Apply(engine);Process.Start(new ProcessStartInfo(exe,engine=="crew"?"-game RF2":""){WorkingDirectory=Path.GetDirectoryName(exe),UseShellExecute=true,WindowStyle=engine=="crew"?ProcessWindowStyle.Hidden:ProcessWindowStyle.Minimized});status.Text="A iniciar o motor…";if(engine=="crew")EngineBackground.RequestHidden(exe,"Crew Chief");else await EngineBackground.HideTinyOnce(exe);UpdateStatus();}catch(Exception ex){status.Text=ex.Message;}
     }
     void Render(){
-        viewport.SuspendLayout();contents.SuspendLayout();invalid.Clear();foreach(Control control in contents.Controls.Cast<Control>().ToArray())control.Dispose();contents.RowStyles.Clear();contents.RowCount=0;
+        viewport.SuspendLayout();contents.SuspendLayout();foreach(Control control in contents.Controls.Cast<Control>().ToArray())control.Dispose();contents.RowStyles.Clear();contents.RowCount=0;
         widgets.BackColor=widgetView?GtcTheme.AccentSurface:GtcTheme.Input;widgets.ForeColor=widgetView?GtcTheme.Accent:GtcTheme.Text;preferences.BackColor=!widgetView?GtcTheme.AccentSurface:GtcTheme.Input;preferences.ForeColor=!widgetView?GtcTheme.Accent:GtcTheme.Text;group.Visible=!widgetView;
         var all=new List<EngineSetting>();string query=search.Text.Trim();
         if(session!=null){
@@ -121,7 +123,7 @@ public sealed class NativeEnginePage:UserControl {
     TableLayoutPanel Card(int columns){var card=new TableLayoutPanel{ColumnCount=columns,RowCount=1,Dock=DockStyle.Top,AutoSize=true,Padding=new Padding(P(8)),BackColor=GtcTheme.Surface,Margin=new Padding(0,0,P(6),P(6))};card.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));for(int i=1;i<columns;i++)card.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));contents.Controls.Add(card);return card;}
     Label Label(string text){return new Label{Text=text,Font=F(12),AutoSize=true,ForeColor=GtcTheme.Text,Anchor=AnchorStyles.Left,Margin=new Padding(0,P(5),P(10),P(5)),MaximumSize=new Size(P(225),0)};}
     void WidgetRow(EngineSetting option){
-        var card=Card(3);var caption=Label(Title(option.Group));caption.MaximumSize=new Size(P(155),0);card.Controls.Add(caption,0,0);var check=new GtcSettingsCheck{Checked=Convert.ToBoolean(option.Value),Size=new Size(P(28),P(28)),BackColor=GtcTheme.Surface,AccessibleName="Ativar "+Title(option.Group),Cursor=Cursors.Hand,Margin=new Padding(P(3),P(3),P(5),0)};card.Controls.Add(check,1,0);check.CheckedChanged+=(s,e)=>{option.Value=check.Checked;changed();UpdateStatus();};
+        var card=Card(3);var caption=Label(Title(option.Group));caption.MaximumSize=new Size(P(155),0);card.Controls.Add(caption,0,0);var check=new GtcSettingsCheck{Checked=Convert.ToBoolean(option.Value),Size=new Size(P(28),P(28)),BackColor=GtcTheme.Surface,AccessibleName="Ativar "+Title(option.Group),Cursor=Cursors.Hand,Margin=new Padding(P(3),P(3),P(5),0)};card.Controls.Add(check,1,0);check.CheckedChanged+=(s,e)=>Set(option,check.Checked);
         var edit=MakeButton("⚙");hints.SetToolTip(edit,"Definições de "+Title(option.Group));edit.AccessibleName="Definições de "+Title(option.Group);card.Controls.Add(edit,2,0);edit.Click+=(s,e)=>{widgetView=false;pageIndex=0;search.Clear();group.SelectedItem=group.Items.Cast<Choice>().First(x=>x.Id==option.Group);Render();};
     }
     void SettingRow(EngineSetting option){
@@ -147,11 +149,12 @@ public sealed class NativeEnginePage:UserControl {
         }
         editor.AccessibleName=Title(option.Key);editor.Width=Math.Min(editor.Width,P(220));editor.Anchor=AnchorStyles.Left;editor.Margin=new Padding(0,P(3),0,P(3));card.Controls.Add(editor,0,1);hints.SetToolTip(editor,option.Hint??option.Key);
     }
-    void Set(EngineSetting option,object value){option.Value=value;changed();UpdateStatus();}
+    void Set(EngineSetting option,object value){option.Value=value;changed();UpdateStatus();if(engine=="tiny"&&!loading){autoSaveTimer.Stop();autoSaveTimer.Start();}}
+    void SaveChanges(){autoSaveTimer.Stop();try{if(session==null||invalid.Count>0||!session.Dirty)return;session.Save();UpdateStatus();}catch(Exception ex){status.Text=ex.Message;}}
     static IEnumerable<Choice> AudioDevices(bool input){
         var result=new List<Choice>();try{using(var root=Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\"+(input?"Capture":"Render"))){if(root!=null)foreach(string name in root.GetSubKeyNames())using(var device=root.OpenSubKey(name))using(var properties=device.OpenSubKey("Properties")){if(Convert.ToInt32(device.GetValue("DeviceState",0))!=1||properties==null)continue;string caption=Convert.ToString(properties.GetValue("{a45c254e-df1c-4efd-8020-67d146a850e0},14",""));if(caption.Length>0)result.Add(new Choice{Id=(input?"{0.0.1.00000000}.":"{0.0.0.00000000}.")+name,Caption=caption});}}}catch{}return result;
     }
-    protected override void Dispose(bool disposing){if(disposing){if(voiceDownload!=null)voiceDownload.Cancel();searchDelay.Dispose();stateTimer.Dispose();hints.Dispose();}base.Dispose(disposing);}
+    protected override void Dispose(bool disposing){if(disposing){if(engine=="tiny")SaveChanges();if(voiceDownload!=null)voiceDownload.Cancel();autoSaveTimer.Dispose();searchDelay.Dispose();stateTimer.Dispose();hints.Dispose();}base.Dispose(disposing);}
     [DllImport("user32.dll",CharSet=CharSet.Unicode)]static extern IntPtr SendMessage(IntPtr window,uint message,IntPtr value,string text);
 }
 

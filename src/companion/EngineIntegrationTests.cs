@@ -27,7 +27,8 @@ public static class EngineIntegrationTests {
             var liveSettings=new EngineSettingsSession{Engine="tiny",Profile="default.json"};liveSettings.Profiles.Add("default.json");liveSettings.Options.Add(new EngineSetting{Group="tyre_wear",Key="enable",Initial=false,Change=new EngineSettingChange{File=tinyFile,Keys=new[]{"tyre_wear","enable"},Before=false,Value=false}});
             using(var form=new Form())using(var page=new NativeEnginePage("tiny",()=>"fixture.exe",()=>{},1,selected=>liveSettings)){
                 form.ShowInTaskbar=false;form.StartPosition=FormStartPosition.Manual;form.Location=new System.Drawing.Point(-20000,-20000);form.Controls.Add(page);form.Show();page.LoadSettings();
-                var toggle=Descendants(page).OfType<GtcSettingsCheck>().Single(c=>c.AccessibleName=="Ativar Desgaste dos pneus");toggle.Checked=true;
+                var tyresButton=Descendants(page).OfType<Button>().Single(b=>b.Text=="Pneus / travões");tyresButton.PerformClick();
+                var toggle=Descendants(page).OfType<GtcSettingsCheck>().Single(c=>c.AccessibleName=="Desgaste dos pneus · Ativar");toggle.Checked=true;
                 var deadline=DateTime.UtcNow.AddSeconds(3);while(liveSettings.Dirty&&DateTime.UtcNow<deadline){Application.DoEvents();System.Threading.Thread.Sleep(20);}
                 if(liveSettings.Dirty)throw new Exception("Alterar um widget TinyPedal deve guardá-lo automaticamente.");
                 var queued=EngineSettingsQueue.Pending("tiny");var updated=File.ReadAllText(tinyFile);if(!queued.Changes.Any(x=>x.Keys.SequenceEqual(new[]{"tyre_wear","enable"})&&Convert.ToBoolean(x.Value))&&!updated.Contains("true"))throw new Exception("O widget deve ser aplicado ou ficar guardado na fila do motor ativo.");

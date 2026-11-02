@@ -26,10 +26,12 @@ public static class ComponentSetupTests {
     static byte[] Zip(string marker,int version,bool audio){
         using(var stream=new MemoryStream()){
             using(var zip=new ZipArchive(stream,ZipArchiveMode.Create,true)){
-                using(var writer=new StreamWriter(zip.CreateEntry(Path.GetFileName(marker)).Open()))writer.Write(version);
-                using(var output=zip.CreateEntry("voice/numbers/point0/2.lnk").Open())output.WriteByte(1);
+                string prefix=marker.Contains("driver_names")?"driver_names/":"";
+                if(prefix!="")using(var output=zip.CreateEntry("updates.txt").Open())output.WriteByte(1);
+                using(var writer=new StreamWriter(zip.CreateEntry(prefix+Path.GetFileName(marker)).Open()))writer.Write(version);
+                using(var output=zip.CreateEntry(prefix+"voice/numbers/point0/2.lnk").Open())output.WriteByte(1);
                 if(audio)using(var output=zip.CreateEntry("voice/radio_check/test.wav").Open())output.Write(new byte[64],0,64);
-                else using(var output=zip.CreateEntry(marker.Contains("personalisations")?"Fixture/test.wav":"Fixture.wav").Open())output.Write(new byte[64],0,64);
+                else using(var output=zip.CreateEntry(prefix+(marker.Contains("personalisations")?"Fixture/test.wav":"Fixture.wav")).Open())output.Write(new byte[64],0,64);
             }return stream.ToArray();
         }
     }

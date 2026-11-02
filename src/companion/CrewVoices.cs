@@ -61,11 +61,19 @@ public static class CrewVoices {
     static void CheckLinks(string root,string file){
         var parent=new DirectoryInfo(Path.GetDirectoryName(file));while(parent!=null&&parent.FullName.StartsWith(root.TrimEnd(Path.DirectorySeparatorChar),StringComparison.OrdinalIgnoreCase)){if(parent.Exists&&(parent.Attributes&FileAttributes.ReparsePoint)!=0)throw new InvalidDataException("A pasta de destino contém uma ligação não suportada.");parent=parent.Parent;}
     }
-    static int ArchiveVersion(string file,string marker){
+    static int ArchiveVersion(string file,string marker,string folder,out string prefix){
+        prefix="";
         using(var zip=ZipFile.OpenRead(file)){
             string root=Path.GetFullPath(Path.Combine(CompanionStore.Root,"archive-validation"))+Path.DirectorySeparatorChar;
             foreach(var entry in zip.Entries)if(!string.IsNullOrEmpty(entry.Name)&&!IgnoredEntry(entry))EntryPath(root,entry.FullName);
-            var version=zip.Entries.FirstOrDefault(entry=>entry.FullName.Replace('\\','/').Equals(marker.Replace('\\','/'),StringComparison.OrdinalIgnoreCase));
+            string nested=string.IsNullOrEmpty(folder)?null:folder+"/"+marker;
+            var versions=zip.Entries.Where(entry=>entry.FullName.Replace('\\','/').Equals(marker,StringComparison.OrdinalIgnoreCase)||(nested!=null&&entry.FullName.Replace('\\','/').Equals(nested,StringComparison.OrdinalIgnoreCase))).ToArray();
+            if(versions.Length!=1)return -1;
+            var version=versions[0];
+            if(nested!=null&&version.FullName.Replace('\\','/').Equals(nested,StringComparison.OrdinalIgnoreCase)){
+                prefix=folder;
+                if(zip.Entries.Any(entry=>!string.IsNullOrEmpty(entry.Name)&&!IgnoredEntry(entry)&&!entry.FullName.Replace('\\','/').StartsWith(folder+"/",StringComparison.OrdinalIgnoreCase)&&!entry.FullName.Equals("updates.txt",StringComparison.OrdinalIgnoreCase)))throw new InvalidDataException("O pacote contém ficheiros fora da pasta esperada.");
+            }
             if(version==null||version.Length>1024)return -1;
             using(var reader=new StreamReader(version.Open())){int number;return int.TryParse(reader.ReadToEnd().Trim(),NumberStyles.Integer,CultureInfo.InvariantCulture,out number)?number:-1;}
         }
@@ -106,9 +114,9 @@ public static class CrewVoices {
                     var pack=group.SelectNodes("update-pack").Cast<XmlNode>().Where(x=>int.Parse(x.Attributes["updates-from-version"].Value,CultureInfo.InvariantCulture)<=before).OrderByDescending(x=>int.Parse(x.Attributes["updates-from-version"].Value,CultureInfo.InvariantCulture)).FirstOrDefault();if(pack==null)throw new InvalidDataException("Não foi possível escolher o pacote oficial.");
                     var original=new Uri(pack.Attributes["url"].Value);string filename=Path.GetFileName(original.AbsolutePath);if(!System.Text.RegularExpressions.Regex.IsMatch(filename,@"\A[a-zA-Z0-9_-]+\.zip\z"))throw new InvalidDataException("Nome de pacote inválido.");
                     string url="https://thecrewchief.org/downloads/"+Uri.EscapeDataString(filename),cache=Path.Combine(CompanionStore.Root,"downloads");Directory.CreateDirectory(cache);string file=Path.Combine(cache,filename);int cached=-1;
-                    string marker=Path.GetFileName(VersionFiles[kind]);
-                    try{if(File.Exists(file))cached=ArchiveVersion(file,marker);}catch(InvalidDataException){}catch(IOException){}
-                    if(cached<=before||cached>latest){await Download(client,url,file,progress,cancel);progress("A verificar "+filename+"…");cached=ArchiveVersion(file,marker);}
+                    string marker=Path.GetFileName(VersionFiles[kind]),folder=kind==0?null:(kind==1?"driver_names":"personalisations"),prefix="";
+                    try{if(File.Exists(file))cached=ArchiveVersion(file,marker,folder,out prefix);}catch(InvalidDataException){}catch(IOException){}
+                    if(cached<=before||cached>latest){await Download(client,url,file,progress,cancel);progress("A verificar "+filename+"…");cached=ArchiveVersion(file,marker,folder,out prefix);}
                     else progress("A reutilizar o pacote descarregado: "+filename);
                     if(cached<=before||cached>latest)throw new InvalidDataException("O pacote não confirmou uma versão válida. Volta a tentar a instalação.");
                     string staging=Path.Combine(cache,"voice-stage-"+Guid.NewGuid().ToString("N"));
@@ -116,7 +124,8 @@ public static class CrewVoices {
                         progress("A preparar "+filename+"…");await Task.Run(()=>ExtractAudio(file,staging,cancel),cancel);cancel.ThrowIfCancellationRequested();
                         if(running())throw new InvalidOperationException("O Crew Chief foi aberto entretanto. Fecha o motor e volta a tentar; o download foi guardado.");
                         string target=kind==0?destination:Path.Combine(destination,kind==1?"driver_names":"personalisations");
-                        progress("A instalar "+filename+"…");await Task.Run(()=>Merge(staging,target));
+                        string content=string.IsNullOrEmpty(prefix)?staging:Path.Combine(staging,prefix);
+                        progress("A instalar "+filename+"…");await Task.Run(()=>Merge(content,target));
                     }finally{if(Directory.Exists(staging))Directory.Delete(staging,true);}
                     if(Version(destination,VersionFiles[kind])<=before)throw new InvalidDataException("A instalação do pacote não ficou concluída. Volta a tentar.");
                 }

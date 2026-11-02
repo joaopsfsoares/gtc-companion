@@ -10,6 +10,13 @@ using System;
 using System.Text;
 public static class SessionFeaturesTests {
     public static void Run(){
+        var watching=new SpectatorLapTracker();var t=DateTime.UtcNow;
+        watching.Update(new[]{new WatchedCar{driverName="Outro",hasFocus=true,player=false,pitting=false,inGarageStall=false,lapsCompleted=3,timeIntoLap=21.5}},t);
+        var seen=watching.Current(t.AddMilliseconds(400));if(seen==null||seen.Driver!="Outro"||seen.LapNumber!=4||Math.Abs(seen.Elapsed.Value-21.9)>.001)throw new Exception("O tempo do piloto observado deve avançar na volta atual.");
+        if(watching.Current(t.AddSeconds(3))!=null)throw new Exception("Os dados de spectate antigos não podem continuar visíveis.");
+        watching.Update(new[]{new WatchedCar{driverName="Outro",hasFocus=true,player=false,pitting=true,lapsCompleted=3,timeIntoLap=21.5}},t);if(watching.Current(t).Elapsed.HasValue)throw new Exception("Não mostrar um tempo de volta em curso quando o piloto está nas boxes.");
+        watching.Update(new[]{new WatchedCar{driverName="Eu",hasFocus=true,player=true}},t);if(watching.Current(t)!=null)throw new Exception("Ao voltar ao próprio carro deve regressar a volta pessoal.");
+        watching.Update(new[]{new WatchedCar{driverName="Outro",hasFocus=true,player=false},new WatchedCar{driverName="Terceiro",hasFocus=true,player=false}},t);if(watching.Current(t)!=null)throw new Exception("Não escolher entre carros com foco ambíguo.");
         var data=new byte[75312];Array.Copy(Encoding.UTF8.GetBytes("Pista"),0,data,12,5);data[127]=1;
         for(int i=0;i<2;i++){int p=560+i*584;string name=i==0?"Alpha":"Beta";Array.Copy(Encoding.UTF8.GetBytes(name),0,data,p+4,name.Length);data[p+197]=3;Array.Copy(BitConverter.GetBytes(100d),0,data,p+104,8);}data[560+584+198]=1;
         var now=DateTime.UtcNow;var activity=DriverActivitySnapshot.Read(data,2,now);

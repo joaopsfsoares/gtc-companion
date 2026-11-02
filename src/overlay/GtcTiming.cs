@@ -33,6 +33,10 @@ public sealed partial class TimingOverlay : Form {
     readonly System.Windows.Forms.Timer poll = new System.Windows.Forms.Timer { Interval = 10000 };
     readonly System.Windows.Forms.Timer lifecycle = new System.Windows.Forms.Timer { Interval = 1000 };
     readonly System.Windows.Forms.Timer liveTimer = new System.Windows.Forms.Timer { Interval = 100 };
+    readonly System.Windows.Forms.Timer focusTimer = new System.Windows.Forms.Timer { Interval = 400 };
+    readonly HttpClient focusHttp = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+    readonly SpectatorLapTracker spectator = new SpectatorLapTracker();
+    bool focusBusy;
     readonly Rf2ScoringReader scoring = new Rf2ScoringReader();
     readonly LiveLapModel lapModel;
     readonly DriverIdeals driverIdeals;
@@ -114,9 +118,18 @@ public sealed partial class TimingOverlay : Form {
         poll.Tick += async (s,e) => await RefreshData();
         lifecycle.Tick += (s,e) => TickLifecycle();
         liveTimer.Tick += (s,e) => {ApplyCommands();UpdateLive();};
-        Shown += async (s,e) => { RegisterKeys(); poll.Start(); lifecycle.Start(); liveTimer.Start(); await RefreshData(); };
+        focusTimer.Tick += async (s,e) => await RefreshSpectator();
+        Shown += async (s,e) => { RegisterKeys(); poll.Start(); lifecycle.Start(); liveTimer.Start(); focusTimer.Start(); await RefreshData(); };
         FormClosing+=(s,e)=>{if(dragging)FinishMove();};
-        FormClosed += (s,e) => { poll.Stop(); lifecycle.Stop(); liveTimer.Stop(); scoring.Dispose();SynchronizeRecords(true);recordRepository.Dispose(); if(settingsDialog!=null)settingsDialog.Close(); SaveSettings(); Write("positions-session.json",positions); if(shortcutRegistration!=null)shortcutRegistration.Dispose();tray.Dispose(); http.Dispose(); };
+        FormClosed += (s,e) => { poll.Stop(); lifecycle.Stop(); liveTimer.Stop(); focusTimer.Stop(); scoring.Dispose();SynchronizeRecords(true);recordRepository.Dispose(); if(settingsDialog!=null)settingsDialog.Close(); SaveSettings(); Write("positions-session.json",positions); if(shortcutRegistration!=null)shortcutRegistration.Dispose();tray.Dispose(); http.Dispose(); focusHttp.Dispose(); };
+    }
+    async Task RefreshSpectator(){
+        if(focusBusy||IsDisposed)return;focusBusy=true;
+        try{using(var response=await focusHttp.GetAsync("http://localhost:5397/rest/watch/standings")){
+            response.EnsureSuccessStatusCode();if(response.Content.Headers.ContentLength>2000000)throw new InvalidDataException();
+            string body=await response.Content.ReadAsStringAsync();if(body.Length>2000000)throw new InvalidDataException();
+            spectator.Update(json.Deserialize<List<WatchedCar>>(body),DateTime.UtcNow);
+        }}catch(Exception){}finally{focusBusy=false;}
     }
     T Read<T>(string name) where T : class {
         try { return json.Deserialize<T>(File.ReadAllText(DataFile(name))); } catch { return null; }
@@ -280,7 +293,7 @@ public sealed partial class TimingOverlay : Form {
             preferredX=settings.X,preferredY=settings.Y,positionAnchor=settings.PositionAnchor,opacityPercent=settings.OpacityPercent,
             pilotsAbove=settings.PilotsAbove,pilotsBelow=settings.PilotsBelow,
             showPositionChanges=settings.ShowPositionChanges,positionBaselineUtc=positions.BaselineUtc,
-            remoteIdealError=remoteIdealError,showDriverIdealLaps=settings.ShowDriverIdealLaps,driverIdeals=rows.Select(row=>new{driver=row.driverName,ideal=driverIdeals.Find(row,snapshot==null||snapshot.activeRound==null?"":snapshot.activeRound.trackName)}).ToArray(),showIdealLap=settings.ShowIdealLap,idealLap=PersonalIdeal(),lapComparison=settings.LapComparison,showPreviousLap=settings.ShowPreviousLap,showDriverActivity=settings.ShowDriverActivity,previousLap=lapModel.LastCompleted,liveState=live.State,liveLap=live.LapNumber,liveElapsed=live.Elapsed,liveGap=live.Gap,liveValid=live.Valid,reference=live.Reference,comparisonPreviousLap=live.Previous,liveSectors=live.Sectors,liveDeltas=live.Deltas,sectorRecords=live.SectorRecords,lapRecord=live.LapRecord });
+            watched=spectator.Current(DateTime.UtcNow),remoteIdealError=remoteIdealError,showDriverIdealLaps=settings.ShowDriverIdealLaps,driverIdeals=rows.Select(row=>new{driver=row.driverName,ideal=driverIdeals.Find(row,snapshot==null||snapshot.activeRound==null?"":snapshot.activeRound.trackName)}).ToArray(),showIdealLap=settings.ShowIdealLap,idealLap=PersonalIdeal(),lapComparison=settings.LapComparison,showPreviousLap=settings.ShowPreviousLap,showDriverActivity=settings.ShowDriverActivity,previousLap=lapModel.LastCompleted,liveState=live.State,liveLap=live.LapNumber,liveElapsed=live.Elapsed,liveGap=live.Gap,liveValid=live.Valid,reference=live.Reference,comparisonPreviousLap=live.Previous,liveSectors=live.Sectors,liveDeltas=live.Deltas,sectorRecords=live.SectorRecords,lapRecord=live.LapRecord });
     }
     bool IsStale() { return failed || updatedUtc==DateTime.MinValue || (DateTime.UtcNow-updatedUtc).TotalSeconds>35; }
     protected override void OnMouseDown(MouseEventArgs e) {
@@ -352,7 +365,9 @@ public sealed partial class TimingOverlay : Form {
         if(indexes.Count==0){Label(g,snapshot==null?"A carregar…":"Sem voltas registadas",12,y,666,14,Muted);y+=28;}
         y+=5;
         using(var pen=new Pen(GtcTheme.Border))g.DrawLine(pen,10,y-2,PanelWidth-10,y-2);
-        PaintLapRow(g,live,"VOLTA ATUAL",nameX,nameWidth,y);
+        var watched=spectator.Current(DateTime.UtcNow);
+        if(watched==null)PaintLapRow(g,live,"VOLTA ATUAL",nameX,nameWidth,y);
+        else PaintLapRow(g,new LiveLapView{LapNumber=watched.LapNumber,Elapsed=watched.Elapsed},"A VER: "+watched.Driver,nameX,nameWidth,y);
         if(settings.ShowPreviousLap)PaintLapRow(g,lapModel.LastCompleted??new LiveLapView(),"VOLTA ANTERIOR",nameX,nameWidth,y+28);
         if(settings.ShowIdealLap)PaintLapRow(g,PersonalIdeal()??new LiveLapView(),"VOLTA IDEAL",nameX,nameWidth,y+28+(settings.ShowPreviousLap?28:0),true);
         using(var pen=new Pen(GtcTheme.Border))g.DrawRectangle(pen,0,0,PanelWidth-1,height-1);
@@ -373,7 +388,7 @@ public sealed partial class TimingOverlay : Form {
     public async Task RenderPreview(string destination,bool demo=false) {
         await RefreshData();
         if(demo)live=new LiveLapView{State="",Valid=true,Finished=true,LapNumber=12,Elapsed=83.2,Gap=-.2,Split=3,Sectors=new double?[]{18.1,33.1,32},Deltas=new double?[]{-.05,-.25,.1},Done=new bool[]{true,true,true},SectorRecords=new bool[]{false,true,false}};
-        else UpdateLive();
+        else {await RefreshSpectator();UpdateLive();}
         using(var bitmap=new Bitmap(Width,Height)) { using(var g=Graphics.FromImage(bitmap)){g.ScaleTransform(scale,scale);PaintPanel(g);} bitmap.Save(destination,System.Drawing.Imaging.ImageFormat.Png); }
     }
     [STAThread] public static int Main(string[] args) {

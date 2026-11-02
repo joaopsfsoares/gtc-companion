@@ -367,12 +367,12 @@ public sealed partial class TimingOverlay : Form {
         using(var pen=new Pen(GtcTheme.Border))g.DrawLine(pen,10,y-2,PanelWidth-10,y-2);
         var watched=spectator.Current(DateTime.UtcNow);
         if(watched==null)PaintLapRow(g,live,"VOLTA ATUAL",nameX,nameWidth,y);
-        else PaintLapRow(g,new LiveLapView{LapNumber=watched.LapNumber,Elapsed=watched.Elapsed},"A VER: "+watched.Driver,nameX,nameWidth,y);
+        else PaintLapRow(g,watched.ToView(),"A VER: "+watched.Driver,nameX,nameWidth,y,false,true);
         if(settings.ShowPreviousLap)PaintLapRow(g,lapModel.LastCompleted??new LiveLapView(),"VOLTA ANTERIOR",nameX,nameWidth,y+28);
         if(settings.ShowIdealLap)PaintLapRow(g,PersonalIdeal()??new LiveLapView(),"VOLTA IDEAL",nameX,nameWidth,y+28+(settings.ShowPreviousLap?28:0),true);
         using(var pen=new Pen(GtcTheme.Border))g.DrawRectangle(pen,0,0,PanelWidth-1,height-1);
     }
-    void PaintLapRow(Graphics g,LiveLapView value,string caption,float nameX,float nameWidth,float y,bool ideal=false){
+    void PaintLapRow(Graphics g,LiveLapView value,string caption,float nameX,float nameWidth,float y,bool ideal=false,bool watched=false){
         using(var fill=new SolidBrush(GtcTheme.LiveRow))g.FillRectangle(fill,6,y,PanelWidth-12,27);
         Label(g,"—",12,y,34,14,Muted);
         Label(g,caption,nameX,y,nameWidth,14,ideal?Purple:Ink,true);
@@ -380,7 +380,7 @@ public sealed partial class TimingOverlay : Form {
         Label(g,value.Elapsed.HasValue?TimingData.Lap(value.Elapsed.Value):"—",286,y,88,14,value.LapRecord?Purple:value.Finished?DeltaColor(value.Gap):Ink,true,true);
         Label(g,Delta(value.Gap),378,y,72,13,value.LapRecord?Purple:DeltaColor(value.Gap),true,true);
         for(int i=0;i<3;i++){
-            float x=458+i*78;Color color=value.Done[i]?(value.SectorRecords[i]?Purple:DeltaColor(value.Deltas[i])):Muted;
+            float x=458+i*78;Color color=value.Done[i]?(watched?Ink:value.SectorRecords[i]?Purple:DeltaColor(value.Deltas[i])):Muted;
             Label(g,TimingData.Sector(value.Sectors[i]),x,y,70,13,color,value.Done[i],true);
         }
     }

@@ -23,6 +23,10 @@ public static class GtcHistoryMergeTests {
         Check(GtcHistoryMerge.TireSummary(new DriverLapPoint{TireCompound="Dry",TireFL=0,TireFR=0,TireRL=0,TireRR=0}).Contains("indisponível"),"valores de pneus nulos não viram percentagem inventada");
         var run=new TrainingRun{Id="s",Driver=local.Driver,Track=local.Track,CreatedUtc=now.AddMinutes(-3),FinishedUtc=now,State="completed",Options=new TrainingOptions(),Laps=new System.Collections.Generic.List<TrainingLap>{new TrainingLap{Number=1,SessionLap=1,CompletedUtc=now.AddMinutes(-2).AddSeconds(1),Time=90,Valid=true,CompleteData=true},new TrainingLap{Number=2,SessionLap=2,CompletedUtc=now.AddMinutes(-1),Time=91,Valid=false,CompleteData=true}}};
         var view=TrainingHistoryView.Merge(run,new[]{remote},110,now);Check(view.GtcMatched&&view.Laps[0].Time==90.01&&view.Laps[0].DataSource=="gtc"&&view.Laps[1].DataSource=="local"&&run.Laps[0].Time==90,"gráfico próprio usa GTC e preserva original");
+        var measured=run.Laps[0];measured.TireSource="csv";measured.TireFL=.9;measured.TireFR=.8;measured.TireRL=.7;measured.TireRR=.6;
+        var csvView=GtcHistoryMerge.Sessions(new[]{remote,local}).Single();GtcHistoryMerge.AttachCsvTires(new[]{csvView},new[]{run});Check(Math.Abs(GtcHistoryMerge.CsvAverageWear(csvView.Laps[0]).Value-25)<.0001,"desgaste dos quatro pneus cruza CSV com a volta certa");Check(GtcHistoryMerge.CsvAverageWear(remote.Laps[0])==null,"não alterar fonte GTC nem assumir a sua escala");
+        GtcHistoryMerge.AttachCsvTires(new[]{csvView},new[]{run,run});Check(GtcHistoryMerge.CsvAverageWear(csvView.Laps[1])==null,"não inventar desgaste para voltas sem dados");
+        var wrongRecord=GtcHistoryMerge.Sessions(new[]{remote}).Single();wrongRecord.Driver="Other";GtcHistoryMerge.AttachCsvTires(new[]{wrongRecord},new[]{run});Check(GtcHistoryMerge.CsvAverageWear(wrongRecord.Laps[0])==null,"não atribuir pneus de outro piloto");
         var unmatched=TrainingHistoryView.Merge(run,new[]{remote},111,now);Check(!unmatched.GtcMatched&&unmatched.Laps.All(l=>l.DataSource=="local"),"não cruzar campeonatos nem afirmar correspondência");
     }
 }

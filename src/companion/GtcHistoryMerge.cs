@@ -23,8 +23,22 @@ public static class GtcHistoryMerge {
         }
         return output.OrderByDescending(r=>r.FirstSeenUtc).ToList();
     }
+    // Only associate CSV samples when driver, track, lap number, time and
+    // timestamp identify a single local lap. Never alter the collected record.
+    public static void AttachCsvTires(IEnumerable<DriverHistoryRecord> records,IEnumerable<TrainingRun> runs){
+        var list=(runs??new TrainingRun[0]).Where(r=>r!=null&&r.Laps!=null).ToList();
+        foreach(var record in records??new DriverHistoryRecord[0])foreach(var lap in record.Laps.Where(l=>l.AtUtc.HasValue)){
+            var matches=list.Where(r=>Same(r.Driver,record.Driver)&&Same(r.Track,record.Track)).SelectMany(r=>r.Laps).Where(l=>l.TireSource=="csv"&&l.SessionLap==lap.Number&&l.CompletedUtc.HasValue&&Math.Abs((l.CompletedUtc.Value-lap.AtUtc.Value).TotalSeconds)<=10&&Math.Abs(l.Time-lap.Time)<.25).ToList();
+            if(matches.Count!=1)continue;var m=matches[0];lap.TireFL=m.TireFL;lap.TireFR=m.TireFR;lap.TireRL=m.TireRL;lap.TireRR=m.TireRR;lap.TireSource="csv";
+        }
+    }
+    public static double? CsvAverageWear(DriverLapPoint lap){
+        if(lap==null||lap.TireSource!="csv")return null;var values=new[]{lap.TireFL,lap.TireFR,lap.TireRL,lap.TireRR};
+        if(values.Any(v=>!v.HasValue||double.IsNaN(v.Value)||double.IsInfinity(v.Value)||v.Value<0||v.Value>1)||values.All(v=>v.Value==0))return null;
+        return 100*(1-values.Average(v=>v.Value));
+    }
     public static string TireSummary(DriverLapPoint lap){
-        if(lap==null)return "Pneus: sem dados";string compound=string.IsNullOrWhiteSpace(lap.TireCompound)?"":lap.TireCompound.Trim()+" · ";
+        if(lap==null)return "Pneus: sem dados";var wear=CsvAverageWear(lap);if(wear.HasValue)return "Pneus · desgaste médio: "+wear.Value.ToString("0.0",CultureInfo.GetCultureInfo("pt-PT"))+"% · telemetria CSV";string compound=string.IsNullOrWhiteSpace(lap.TireCompound)?"":lap.TireCompound.Trim()+" · ";
         var values=new[]{lap.TireFL,lap.TireFR,lap.TireRL,lap.TireRR};
         if(values.Any(v=>!v.HasValue||double.IsNaN(v.Value)||double.IsInfinity(v.Value))||values.All(v=>v.Value==0))return "Pneus: "+compound+"desgaste indisponível";
         return "Pneus "+compound+"DE / DD / TE / TD: "+string.Join(" / ",values.Select(v=>v.Value.ToString("0.###",CultureInfo.GetCultureInfo("pt-PT"))).ToArray())+" · valores GTC, escala não confirmada";

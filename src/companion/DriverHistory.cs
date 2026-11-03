@@ -21,6 +21,7 @@ public sealed class DriverLapPoint {
     public string DataSource {get;set;}
     public bool PossiblyInvalid {get;set;}
     public string TireCompound {get;set;}
+    public string TireSource {get;set;}
     public double? TireFL {get;set;}
     public double? TireFR {get;set;}
     public double? TireRL {get;set;}

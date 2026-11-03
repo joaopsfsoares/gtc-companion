@@ -35,7 +35,7 @@ public sealed class TrainingHud:Form {
         if(!locked){using(var pen=new Pen(GtcTheme.Accent))g.DrawRectangle(pen,350,5,116,23);text("CONCLUIR",365,9,10,GtcTheme.Accent,true);}
         if(Run==null){text("Inicia um stint para ver os tempos.",14,36,16,GtcTheme.Muted,false);return;}
         if(Run.State=="armed"){text("A aguardar passagem pela meta",14,36,18,GtcTheme.Text,true);if(!compact){text("A volta de saída não conta.",14,77,11,GtcTheme.Muted,false);text("Alvo "+TimingData.Lap(Run.Options.Target)+" · "+Run.Options.Amount+(Run.Options.Minutes?" minutos":" voltas"),14,113,12,GtcTheme.Accent,true);}return;}
-        string count=Run.Options.Minutes?Run.Laps.Count+" voltas · "+TrainingMath.Remaining(Run):Run.Laps.Count+" / "+Run.Options.Amount+" voltas · "+TrainingMath.Remaining(Run);
+        string count=Run.GoalReached?Run.Laps.Count+" voltas · objetivo atingido":Run.Options.Minutes?Run.Laps.Count+" voltas · "+TrainingMath.Remaining(Run):Run.Laps.Count+" / "+Run.Options.Amount+" voltas · "+TrainingMath.Remaining(Run);
         text(Run.Active?count:(Run.State=="completed"?"OBJETIVO CONCLUÍDO":Run.State=="interrupted"?"STINT INTERROMPIDO":"TERMINADO MANUALMENTE")+" · "+Run.Laps.Count+" voltas",14,34,13,Run.State=="interrupted"?GtcTheme.Accent:GtcTheme.Text,true);
         text("Média "+TrainingMath.Lap(Run.Average),14,59,20,GtcTheme.Text,true);
         if(Run.Average.HasValue)text(TrainingMath.Delta(Run.Average.Value-Run.Options.Target),325,65,14,AnalysisLegend.Point(true,Run.Average.Value,Run.Options.Target,Run.Options.Tolerance),true);

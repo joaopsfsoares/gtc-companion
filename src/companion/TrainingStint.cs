@@ -34,6 +34,7 @@ public sealed class TrainingLap {
     public string DataSource {get;set;}
     public bool PossiblyInvalid {get;set;}
     public string TireCompound {get;set;}
+    public string TireSource {get;set;}
     public double? TireFL {get;set;}
     public double? TireFR {get;set;}
     public double? TireRL {get;set;}
@@ -56,6 +57,8 @@ public sealed class TrainingRun {
     public double Elapsed {get;set;}
     public int OffTracks {get;set;}
     public bool HadTelemetryGap {get;set;}
+    public bool Automatic {get;set;}
+    public bool GoalReached {get;set;}
     public TrainingRun(){Laps=new List<TrainingLap>();State="armed";}
     public double? Average {get{return Laps.Count==0?(double?)null:Laps.Average(x=>x.Time);}}
     public int InWindow {get{return Laps.Count(x=>TrainingMath.WithinWindow(x.Time,Options.Target,Options.Tolerance));}}
@@ -86,17 +89,32 @@ public sealed class TrainingModel {
     string identity;
     double started,lastTime,lapStart,outSince=-1,inSince=-1,inactiveAt=-1;
     bool valid,completeData,offTrack;
+    TrainingOptions automaticOptions; bool observedPits; double pitSince=-1;
     int lapCounter,lapOffTracks;
     static string Identity(LiveSample sample){return sample.Track+"|"+sample.Car+"|"+sample.Driver+"|"+sample.Session+"|"+sample.Slot;}
     public void Arm(TrainingOptions options){
         options.Validate();if(Run!=null&&Run.Active)throw new InvalidOperationException("Termina o stint atual antes de começar outro.");
         Run=new TrainingRun{Id=Guid.NewGuid().ToString("N"),Options=options.Copy(),CreatedUtc=DateTime.UtcNow};previous=null;identity=null;outSince=inSince=inactiveAt=-1;offTrack=false;Revision++;Notice="A aguardar a próxima passagem pela meta. A volta de saída não conta.";
     }
+    public void EnableAutomatic(TrainingOptions options){options.Validate();automaticOptions=options.Copy();}
+    public void ApplyOptions(TrainingOptions options){options.Validate();automaticOptions=options.Copy();if(Run!=null&&Run.Active){Run.Options=options.Copy();Run.GoalReached=!options.Minutes&&Run.Laps.Count>=options.Amount;Revision++;Notice="Objetivo atualizado para o stint atual.";}}
     public void Update(LiveSample sample){
+        if(sample!=null&&sample.InPits)observedPits=true;
+        if(automaticOptions!=null&&(Run==null||!Run.Active)&&sample!=null&&sample.Realtime&&!sample.InPits&&TrainingMath.Positive(sample.SessionTime)){
+            Arm(automaticOptions);Run.Automatic=true;pitSince=-1;
+            if(!observedPits)Run.RecoveryNote="A observação começou em pista; o início do stint pode não estar incluído.";
+            observedPits=false;
+        }
         if(Run==null||!Run.Active)return;
-        if(sample==null){Notice="A aguardar telemetria. O tempo fica no último valor recebido.";return;}
+        if(sample==null){pitSince=-1;Notice="A aguardar telemetria. O tempo fica no último valor recebido.";return;}
         if(!TrainingMath.Positive(sample.SessionTime)||double.IsNaN(sample.LapStart)||double.IsInfinity(sample.LapStart))return;
         string key=Identity(sample);
+        if(Run.Automatic&&sample.InPits){
+            if(pitSince<0)pitSince=sample.SessionTime;
+            if(sample.SessionTime-pitSince>=.6)Finish(Run.GoalReached?"completed":"stopped",Run.GoalReached?"Regresso às boxes · objetivo atingido.":"Regresso às boxes · objetivo não concluído.");
+            previous=sample;return;
+        }
+        pitSince=-1;
         if(Run.State=="armed"){
             if(previous!=null&&Identity(previous)==key&&sample.Realtime&&!sample.InPits&&sample.Laps==previous.Laps+1&&sample.LapStart>previous.LapStart+.05){
                 Run.State="running";Run.Track=sample.Track;Run.Car=sample.Car;Run.Driver=sample.Driver;identity=key;started=sample.LapStart;lapStart=sample.LapStart;lapCounter=sample.Laps;lastTime=sample.SessionTime;valid=sample.CountLapFlag==2;completeData=true;lapOffTracks=0;Revision++;Notice="Stint em curso.";
@@ -117,12 +135,12 @@ public sealed class TrainingModel {
             // lap time. The two observed line crossings still give their duration.
             bool gameTimed=valid&&TrainingMath.Positive(sample.LastLap)&&Math.Abs(sample.LastLap-duration)<.25;
             var lap=new TrainingLap{Number=Run.Laps.Count+1,Time=gameTimed?sample.LastLap:duration,Valid=valid&&gameTimed,CompleteData=completeData,OffTracks=lapOffTracks,SessionLap=countDelta==1?(int?)sample.Laps:null,CompletedUtc=DateTime.UtcNow};DriverLapAnalysis.CaptureSectors(lap,sample,gameTimed);Run.Laps.Add(lap);Run.Elapsed=Math.Max(0,sample.LapStart-started+pauseAfterLine);Revision++;
-            if((!Run.Options.Minutes&&Run.Laps.Count>=Run.Options.Amount)||(Run.Options.Minutes&&Run.Elapsed>=Run.Options.Amount*60-.001)){Finish("completed","Objetivo de duração concluído.");return;}
+            if((!Run.Options.Minutes&&Run.Laps.Count>=Run.Options.Amount)||(Run.Options.Minutes&&Run.Elapsed>=Run.Options.Amount*60-.001)){if(!Run.Automatic){Finish("completed","Objetivo de duração concluído.");return;}Run.GoalReached=true;}
             lapCounter=sample.Laps;lapStart=sample.LapStart;valid=sample.CountLapFlag==2;completeData=sample.SessionTime-sample.LapStart<=3;lapOffTracks=0;
         }else if(sample.Laps!=lapCounter){Stop("Contador de voltas alterado.",true);return;}
         if(sample.CountLapFlag!=2)valid=false;
         Run.Elapsed=Math.Max(0,sample.SessionTime-started);DetectOffTrack(sample);lastTime=sample.SessionTime;previous=sample;
-        Notice=Run.Options.Minutes&&Run.Elapsed>=Run.Options.Amount*60?"Tempo atingido · termina esta volta.":"Stint em curso.";
+        Notice=Run.GoalReached?"Objetivo atingido · stint em curso até ao regresso às boxes.":Run.Options.Minutes&&Run.Elapsed>=Run.Options.Amount*60?"Tempo atingido · termina esta volta.":"Stint em curso.";
     }
     void DetectOffTrack(LiveSample sample){
         // Approximate track corridor, not official track-limit penalties. Margin

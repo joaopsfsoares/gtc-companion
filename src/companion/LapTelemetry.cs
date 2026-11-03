@@ -9,10 +9,10 @@ using System.Linq;
 
 // Offsets and packing match pyRfactor2SharedMemory rF2VehicleTelemetry (pack 4).
 public sealed class LapTelemetryFrame {
-    public int Slot,Gear; public double Time,LapStart,X,Y,Z,Throttle,Brake,Steering,FilteredThrottle,FilteredBrake,FilteredSteering,PressureFL,PressureFR,PressureRL,PressureRR;
+    public int Slot,Gear; public double Time,LapStart,X,Y,Z,Throttle,Brake,Steering,FilteredThrottle,FilteredBrake,FilteredSteering,PressureFL,PressureFR,PressureRL,PressureRR,WearFL,WearFR,WearRL,WearRR;
     public static LapTelemetryFrame Decode(byte[] b,int p){
         Func<int,double> d=o=>BitConverter.ToDouble(b,p+o);
-        return new LapTelemetryFrame{Slot=BitConverter.ToInt32(b,p),Time=d(12),LapStart=d(24),X=d(160),Y=d(168),Z=d(176),Gear=BitConverter.ToInt32(b,p+352),Throttle=d(388),Brake=d(396),Steering=d(404),FilteredThrottle=d(420),FilteredBrake=d(428),FilteredSteering=d(436),PressureFL=d(880),PressureFR=d(1140),PressureRL=d(1400),PressureRR=d(1660)};
+        return new LapTelemetryFrame{Slot=BitConverter.ToInt32(b,p),Time=d(12),LapStart=d(24),X=d(160),Y=d(168),Z=d(176),Gear=BitConverter.ToInt32(b,p+352),Throttle=d(388),Brake=d(396),Steering=d(404),FilteredThrottle=d(420),FilteredBrake=d(428),FilteredSteering=d(436),PressureFL=d(880),PressureFR=d(1140),PressureRL=d(1400),PressureRR=d(1660),WearFL=d(1000),WearFR=d(1260),WearRL=d(1520),WearRR=d(1780)};
     }
 }
 public sealed class LapTelemetryReader : IDisposable {
@@ -46,12 +46,24 @@ public sealed class LapTelemetryWriter : IDisposable {
             string driver=new string((s.Driver??"Piloto").Where(c=>!char.IsControl(c)&&Array.IndexOf(Path.GetInvalidFileNameChars(),c)<0).Take(50).ToArray()).Trim().TrimEnd('.');if(driver.Length==0)driver="Piloto";
             CurrentFile=Path.Combine(root,DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss-fff")+"_"+driver+"_volta_"+lap+partial+"_"+Guid.NewGuid().ToString("N").Substring(0,8)+".csv");
             writer=new StreamWriter(new FileStream(CurrentFile,FileMode.CreateNew,FileAccess.Write,FileShare.Read),new UTF8Encoding(true));
-            writer.WriteLine("pista;carro;piloto;volta_sessao;tempo_sessao_s;tempo_volta_s;posicao_x_m;posicao_y_m;posicao_z_m;acelerador_bruto;travao_bruto;direcao_bruta;acelerador_filtrado;travao_filtrado;direcao_filtrada;pressao_travao_fe;pressao_travao_fd;pressao_travao_te;pressao_travao_td;marcha");
+            writer.WriteLine("pista;carro;piloto;volta_sessao;tempo_sessao_s;tempo_volta_s;posicao_x_m;posicao_y_m;posicao_z_m;acelerador_bruto;travao_bruto;direcao_bruta;acelerador_filtrado;travao_filtrado;direcao_filtrada;pressao_travao_fe;pressao_travao_fd;pressao_travao_te;pressao_travao_td;marcha;pneu_fe_restante;pneu_fd_restante;pneu_te_restante;pneu_td_restante");
         }
         if(f.Time<=last)return;last=f.Time;
         int number=s.Laps+1+(f.LapStart>s.LapStart+1?1:0);
-        writer.WriteLine(string.Join(";",new[]{Text(s.Track),Text(s.Car),Text(s.Driver),number.ToString(CultureInfo.InvariantCulture),Number(f.Time),Number(f.Time-f.LapStart),Number(f.X),Number(f.Y),Number(f.Z),Number(f.Throttle),Number(f.Brake),Number(f.Steering),Number(f.FilteredThrottle),Number(f.FilteredBrake),Number(f.FilteredSteering),Number(f.PressureFL),Number(f.PressureFR),Number(f.PressureRL),Number(f.PressureRR),f.Gear.ToString(CultureInfo.InvariantCulture)}));
+        writer.WriteLine(string.Join(";",new[]{Text(s.Track),Text(s.Car),Text(s.Driver),number.ToString(CultureInfo.InvariantCulture),Number(f.Time),Number(f.Time-f.LapStart),Number(f.X),Number(f.Y),Number(f.Z),Number(f.Throttle),Number(f.Brake),Number(f.Steering),Number(f.FilteredThrottle),Number(f.FilteredBrake),Number(f.FilteredSteering),Number(f.PressureFL),Number(f.PressureFR),Number(f.PressureRL),Number(f.PressureRR),f.Gear.ToString(CultureInfo.InvariantCulture),Number(f.WearFL),Number(f.WearFR),Number(f.WearRL),Number(f.WearRR)}));
         if((DateTime.UtcNow-flush).TotalSeconds>=1){writer.Flush();flush=DateTime.UtcNow;}
+    }
+    public void CaptureWear(TrainingLap lap,LiveSample sample){
+        if(writer==null||lap==null||sample==null||CurrentFile==null)return;
+        try{
+            writer.Flush();string last=null;using(var stream=new FileStream(CurrentFile,FileMode.Open,FileAccess.Read,FileShare.ReadWrite))using(var reader=new StreamReader(stream)){string line;while((line=reader.ReadLine())!=null)last=line;}if(last==null)return;
+            // The final four columns are the recorded tyre values; validate the
+            // session lap and timing before associating them with a completed lap.
+            string[] fields=last.Split(';');if(fields.Length<24)return;
+            int n;double t;if(!int.TryParse(fields[3],out n)||!double.TryParse(fields[4],NumberStyles.Float,CultureInfo.InvariantCulture,out t)||Math.Abs(sample.SessionTime-t)>5||lap.SessionLap.HasValue&&n!=lap.SessionLap.Value)return;
+            double[] v=new double[4];for(int i=0;i<4;i++)if(!double.TryParse(fields[fields.Length-4+i],NumberStyles.Float,CultureInfo.InvariantCulture,out v[i])||v[i]<0||v[i]>1||double.IsNaN(v[i]))return;
+            if(v.All(x=>x==0))return;lap.TireFL=v[0];lap.TireFR=v[1];lap.TireRL=v[2];lap.TireRR=v[3];lap.TireSource="csv";
+        }catch(IOException){}catch(UnauthorizedAccessException){}
     }
     public void Close(){if(writer!=null){writer.Dispose();writer=null;}identity=null;last=-1;}
     public void Dispose(){Close();}

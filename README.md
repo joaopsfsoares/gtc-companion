@@ -153,3 +153,5 @@ O script obtém os componentes nas versões fixadas quando necessário. A assina
 Projeto da comunidade, sem afiliação oficial declarada. A identidade GTC pertence aos respetivos titulares. A tipografia Ubuntu mantém a Ubuntu Font Licence 1.0. rFactor 2 e Steam são instalados separadamente e mantêm as suas próprias condições.
 
 A telemetria das voltas do próprio piloto é guardada localmente em CSV em `%LOCALAPPDATA%\GTC-Companion\telemetry\laps` enquanto o Companion e o rFactor 2 estão abertos. Inclui posição e comandos brutos e filtrados; valores dos pedais são frações de 0 a 1, direção de -1 a 1. Uma gravação iniciada a meio da volta é assinalada como parcial. Estes dados pessoais não são enviados para o repositório.
+
+Durante spectate, o Companion identifica o carro da câmara através do canal Graphics do plugin e grava as voltas observadas em `telemetry\laps\observados`. O canal é ativado temporariamente se necessário; a identificação e a gravação param quando a câmara muda ou os dados deixam de ser fiáveis.

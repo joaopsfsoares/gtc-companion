@@ -7,6 +7,9 @@ public static class LapTelemetryTests {
     public static void Run(){
         var b=new byte[1888];Action<int,double> put=(p,v)=>Array.Copy(BitConverter.GetBytes(v),0,b,p,8);Array.Copy(BitConverter.GetBytes(17),0,b,0,4);put(12,21);put(24,20);put(160,2);put(168,3);put(176,4);put(388,.9);put(396,.4);put(404,-.3);put(420,.8);put(428,.35);put(436,-.25);
         var f=LapTelemetryFrame.Decode(b,0);Require(f.Slot==17&&f.X==2&&f.Brake==.4&&f.FilteredBrake==.35&&f.Steering==-.3,"campos da memória partilhada");
+        var player=new LiveSample{Slot=1};var other=new LiveSample{Slot=17,Driver="Piloto observado",Realtime=false};var activity=new DriverActivitySnapshot{UpdatedUtc=DateTime.UtcNow};activity.Drivers.Add(new DriverActivityEntry{Lap=other,State=DriverPresence.OnTrack});
+        Require(ViewedCarReader.Select(17,player,activity,DateTime.UtcNow)==other,"selecionar piloto da câmara");Require(ViewedCarReader.Select(1,player,activity,DateTime.UtcNow)==null,"não duplicar jogador");Require(ViewedCarReader.Select(17,player,activity,DateTime.UtcNow.AddSeconds(2))==null,"rejeitar classificação desatualizada");
+        activity.Drivers.Add(new DriverActivityEntry{Lap=other,State=DriverPresence.OnTrack});Require(ViewedCarReader.Select(17,player,activity,DateTime.UtcNow)==null,"rejeitar identificação ambígua");
         string dir=Path.Combine(Path.GetTempPath(),"gtc-lap-test-"+Guid.NewGuid().ToString("N"));
         try{
             var s=new LiveSample{Driver="Joao",Track="Pista",Car="Carro",Slot=17,Realtime=true,Laps=2,LapStart=20,SessionTime=21};
@@ -15,6 +18,7 @@ public static class LapTelemetryTests {
                 s.SessionTime=30;s.Laps=3;s.LapStart=30;f.Time=30.1;f.LapStart=30;w.Observe(s,f);string second=w.CurrentFile;w.Close();Require(first!=second&&File.Exists(second),"nova volta em ficheiro separado");
                 s.Slot=18;w.Observe(s,f);Require(Directory.GetFiles(dir).Length==2,"não gravar o carro errado");
             }
+            string observed=Path.Combine(dir,"observados");s.Slot=17;s.Realtime=false;s.InPits=false;using(var w=new LapTelemetryWriter(observed,false)){w.Observe(s,f);Require(File.Exists(w.CurrentFile),"gravar piloto observado mesmo com jogador em spectate");s.InPits=true;w.Observe(s,f);}
         }finally{if(Directory.Exists(dir))Directory.Delete(dir,true);}
     }
 }

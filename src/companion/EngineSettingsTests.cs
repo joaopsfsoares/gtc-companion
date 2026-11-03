@@ -39,6 +39,12 @@ public static class EngineSettingsTests {
             var session=EngineSettingsSession.Crew(Path.Combine(temp,"CrewChiefV4.exe"),null,xmlFile,profiles);if(session.Dirty||session.Options.Any(x=>x.Key.StartsWith("#")))throw new Exception("Ler valores predefinidos em falta não pode criar alterações ou tratar comentários como preferências.");string originalXml=File.ReadAllText(xmlFile);session.Save();if(File.ReadAllText(xmlFile)!=originalXml)throw new Exception("Guardar sem alterações não deve escrever preferências globais.");
             if(!EngineSettingsSession.Resource("CrewDefaults").ContainsKey("enable_spotter"))throw new Exception("Metadados do Crew Chief em falta.");
             var tiny=EngineSettingsSession.Resource("TinyDefaults");if(!tiny.ContainsKey("preset"))throw new Exception("Metadados do TinyPedal em falta.");
+            string fresh=Path.Combine(temp,"tiny-fresh");Directory.CreateDirectory(fresh);File.WriteAllText(Path.Combine(fresh,"classes.json"),"{}");
+            if(!BundledEngines.EnsureTinyDefault(fresh))throw new Exception("Criar o perfil predefinido mesmo quando há ficheiros auxiliares.");
+            string defaultFile=Path.Combine(fresh,"default.json");var preset=CompanionStore.Json.Deserialize<Dictionary<string,object>>(File.ReadAllText(defaultFile));
+            foreach(string key in new[]{"track_map","radar","tyre_wear","tyre_temperature","brake_temperature"})if(!(bool)((Dictionary<string,object>)preset[key])["enable"])throw new Exception("A predefinição deve ativar "+key+".");
+            File.WriteAllText(defaultFile,"personalizado");if(BundledEngines.EnsureTinyDefault(fresh)||File.ReadAllText(defaultFile)!="personalizado")throw new Exception("Não substituir um default existente, mesmo se inválido.");
+            string custom=Path.Combine(temp,"tiny-custom");Directory.CreateDirectory(custom);File.WriteAllText(Path.Combine(custom,"meu.json"),"{\"overlay\":{}}");if(BundledEngines.EnsureTinyDefault(custom)||File.Exists(Path.Combine(custom,"default.json")))throw new Exception("Preservar um perfil com outro nome.");
         }finally{CompanionStore.Root=saved;}
     }
 }

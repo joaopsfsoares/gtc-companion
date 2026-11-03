@@ -51,9 +51,9 @@ Usa modo de janela sem bordas para os overlays aparecerem sobre o jogo. Fechar o
 
 As páginas próprias do Companion editam as configurações dos motores originais:
 
-- **TinyPedal:** widgets, posição, opacidade, escala, cores, unidades e módulos. Pesquisa, grupos e paginação ajudam a encontrar as opções.
+- **TinyPedal:** widgets, posição, opacidade, escala, cores, unidades e módulos. A secção **Pneus / travões** reúne os controlos mais usados. Pesquisa, grupos e paginação ajudam a encontrar as outras opções. Numa instalação nova, o perfil predefinido inclui o mapa, o radar, o desgaste e as temperaturas dos pneus e dos travões; perfis existentes são preservados.
 - **Crew Chief:** perfis, nomes e vozes instalados, volumes, dispositivos de áudio, microfone, reconhecimento de voz, spotter e mensagens.
-- **Guardar alterações:** aplica apenas os campos alterados. Com o motor aberto, coloca-os numa fila local para aplicar depois de fechar ou no próximo arranque. Os ficheiros originais são guardados em `backups/engines`. Conflitos com alterações externas exigem recarregar e rever.
+- **Guardar alterações:** no TinyPedal, as alterações válidas são guardadas automaticamente e o perfil ativo é atualizado com o motor aberto. Outros perfis e definições globais ficam pendentes até o motor fechar. No Crew Chief, as alterações ficam pendentes enquanto o motor estiver aberto. Conflitos com alterações externas exigem recarregar e rever; ao aplicar alterações com os motores fechados, são guardadas cópias em `backups/engines`.
 
 Inclui TinyPedal **2.52.0** e Crew Chief **4.19.5.8**. A biblioteca Python do TinyPedal contém uma integração para aplicar alterações ao perfil ativo enquanto o motor está aberto; os respetivos fontes estão em `assets/tinypedal-live`. Os pacotes de áudio são descarregados pelo assistente de instalação. Algumas ferramentas continuam a pertencer às aplicações originais.
 

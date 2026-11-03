@@ -41,4 +41,5 @@ third-party-source/
 engines-migration.json
 
 training/
+telemetry/
 records/

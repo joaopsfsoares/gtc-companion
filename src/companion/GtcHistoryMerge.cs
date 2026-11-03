@@ -13,12 +13,14 @@ public static class GtcHistoryMerge {
         foreach(var gtc in all.Where(r=>r.Source=="gtc")){
             var copy=new DriverHistoryRecord{Id=gtc.Id,StreamKey=gtc.StreamKey,Source="gtc",TimingId=gtc.TimingId,Driver=gtc.Driver,Class=gtc.Class,Track=gtc.Track,FirstSeenUtc=gtc.FirstSeenUtc,UpdatedUtc=gtc.UpdatedUtc,TotalLaps=gtc.TotalLaps,LastEventTime=gtc.LastEventTime,LastPitCount=gtc.LastPitCount,LastInPits=gtc.LastInPits,DataRevision=gtc.DataRevision,Laps=gtc.Laps.Select(l=>{var v=l.Copy();v.DataSource="gtc";return v;}).ToList(),Visits=gtc.Visits.ToList()};
             var anchors=gtc.Laps.ToLookup(l=>l.Number);var matches=all.Where(r=>r.Source=="local"&&Same(r.Driver,gtc.Driver)&&Same(r.Track,gtc.Track)&&Same(r.Class,gtc.Class)&&r.Laps.Any(l=>anchors[l.Number].Any(g=>Anchor(g,l)))).ToList();
-            if(matches.Count==1){
-                var local=matches[0];copy.DataRevision=gtc.DataRevision+local.DataRevision;foreach(var lap in local.Laps.Where(l=>l.AtUtc.HasValue&&l.AtUtc.Value>=gtc.FirstSeenUtc.AddSeconds(-10)&&l.AtUtc.Value<=gtc.UpdatedUtc.AddSeconds(10)&&!copy.Laps.Any(g=>g.Number==l.Number))){
-                    var v=lap.Copy();v.DataSource="local";v.PossiblyInvalid=v.Valid!=false;copy.Laps.Add(v);
-                }
-                copy.Laps=copy.Laps.OrderBy(l=>l.Number).ToList();
+            // Restarts can split one observed session into several local records.
+            // Each record must independently share a time-and-lap anchor with
+            // the GTC session; conflicting candidates for a missing lap are not guessed.
+            var candidates=matches.SelectMany(r=>r.Laps).Where(l=>l.AtUtc.HasValue&&l.AtUtc.Value<=gtc.UpdatedUtc.AddSeconds(10)&&!copy.Laps.Any(g=>g.Number==l.Number)).GroupBy(l=>l.Number);
+            foreach(var group in candidates){var values=group.ToList();var first=values[0];if(values.Any(v=>Math.Abs(v.Time-first.Time)>.25||Math.Abs((v.AtUtc.Value-first.AtUtc.Value).TotalSeconds)>10||v.Valid!=first.Valid))continue;
+                var addition=values.OrderByDescending(l=>l.Complete).First().Copy();addition.DataSource="local";addition.PossiblyInvalid=addition.Valid!=false;copy.Laps.Add(addition);
             }
+            copy.DataRevision=gtc.DataRevision+matches.Sum(r=>r.DataRevision);copy.Laps=copy.Laps.OrderBy(l=>l.Number).ToList();
             output.Add(copy);
         }
         return output.OrderByDescending(r=>r.FirstSeenUtc).ToList();
@@ -36,6 +38,10 @@ public static class GtcHistoryMerge {
         if(lap==null||lap.TireSource!="csv")return null;var values=new[]{lap.TireFL,lap.TireFR,lap.TireRL,lap.TireRR};
         if(values.Any(v=>!v.HasValue||double.IsNaN(v.Value)||double.IsInfinity(v.Value)||v.Value<0||v.Value>1)||values.All(v=>v.Value==0))return null;
         return 100*(1-values.Average(v=>v.Value));
+    }
+    public static void WearRange(IEnumerable<double> values,out double low,out double high){
+        var v=values.Where(x=>!double.IsNaN(x)&&!double.IsInfinity(x)&&x>=0&&x<=100).ToArray();if(v.Length==0){low=0;high=100;return;}
+        double pad=Math.Max(1,(v.Max()-v.Min())*.15);low=Math.Max(0,v.Min()-pad);high=Math.Min(100,v.Max()+pad);if(high-low<.01){low=0;high=100;}
     }
     public static string TireSummary(DriverLapPoint lap){
         if(lap==null)return "Pneus: sem dados";var wear=CsvAverageWear(lap);if(wear.HasValue)return "Pneus · desgaste médio: "+wear.Value.ToString("0.0",CultureInfo.GetCultureInfo("pt-PT"))+"% · telemetria CSV";string compound=string.IsNullOrWhiteSpace(lap.TireCompound)?"":lap.TireCompound.Trim()+" · ";

@@ -18,9 +18,9 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 [assembly:AssemblyTitle("GTC Companion")]
 [assembly:AssemblyProduct("GTC Companion")]
-[assembly:AssemblyVersion("0.11.16.0")]
-[assembly:AssemblyFileVersion("0.11.16.0")]
-[assembly:AssemblyInformationalVersion("0.11.16")]
+[assembly:AssemblyVersion("0.11.17.0")]
+[assembly:AssemblyFileVersion("0.11.17.0")]
+[assembly:AssemblyInformationalVersion("0.11.17")]
 
 public sealed partial class CompanionWindow:Form {
     public bool PreviewOnly;

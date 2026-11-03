@@ -13,7 +13,7 @@ public sealed class TelemetryPoint {
 public sealed class TelemetryLap {
     public string Driver,Track,Car,Path; public bool Complete,HasGaps; public string Issue;
     public readonly List<TelemetryPoint> Points=new List<TelemetryPoint>();
-    static string[] Parse(string line){var result=new List<string>();var b=new StringBuilder();bool quoted=false;for(int i=0;i<line.Length;i++){char c=line[i];if(c=='"'){if(quoted&&i+1<line.Length&&line[i+1]=='"'){b.Append('"');i++;}else quoted=!quoted;}else if(c==';'&&!quoted){result.Add(b.ToString());b.Clear();}else b.Append(c);}if(quoted)throw new InvalidDataException("Linha CSV incompleta.");result.Add(b.ToString());return result.ToArray();}
+    public static string[] Parse(string line){var result=new List<string>();var b=new StringBuilder();bool quoted=false;for(int i=0;i<line.Length;i++){char c=line[i];if(c=='"'){if(quoted&&i+1<line.Length&&line[i+1]=='"'){b.Append('"');i++;}else quoted=!quoted;}else if(c==';'&&!quoted){result.Add(b.ToString());b.Clear();}else b.Append(c);}if(quoted)throw new InvalidDataException("Linha CSV incompleta.");result.Add(b.ToString());return result.ToArray();}
     public static TelemetryLap Load(string path){
         if(new FileInfo(path).Length>25*1024*1024)throw new InvalidDataException("Ficheiro demasiado grande.");
         var result=new TelemetryLap{Path=path};using(var stream=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite))using(var reader=new StreamReader(stream,Encoding.UTF8,true)){

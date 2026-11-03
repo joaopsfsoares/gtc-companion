@@ -27,12 +27,30 @@ public sealed class DriverAnalysisChart:Control {
         return record.Visits.Any(v=>!v.Approximate&&(lap.Number==v.EntryAfterLap+1||v.ExitAfterLap.HasValue&&lap.Number==v.ExitAfterLap.Value+1));
     }
     public static List<DriverLapPoint> ScaleLaps(DriverHistoryRecord record,IEnumerable<DriverLapPoint> points){return points.Where(l=>!PitLap(record,l)).ToList();}
-    public static void DiagonalLabel(Graphics g,string text,Font font,Brush ink,float x,float y,RectangleF plot){
-        var state=g.Save();g.SetClip(plot);float extent=g.MeasureString(text,font).Width*.72f;bool left=x+extent+8>plot.Right,down=y-extent-8<plot.Top;g.TranslateTransform(x+(left?-5:5),y+(down?5:-5));g.RotateTransform(down?(left?135:45):(left?-135:-45));g.DrawString(text,font,ink,0,-font.Height/2f);g.Restore(state);
+    public sealed class PointLabel {public string Text;public PointF Point;public bool Selected;}
+    // Place the selected label first, then only labels that have room; every
+    // point stays visible and can be selected or inspected with the mouse.
+    public static void DrawPointLabels(Graphics g,IEnumerable<PointLabel> source,Font font,Font bold,Brush ink,RectangleF plot){
+        var labels=source.ToList();var occupied=labels.Select(l=>new RectangleF(l.Point.X-5,l.Point.Y-5,10,10)).ToList();
+        var placements=new List<Tuple<PointLabel,float,float,float,RectangleF>>();
+        foreach(var item in labels.OrderByDescending(l=>l.Selected)){
+            Font chosen=item.Selected?bold:font;float side=(g.MeasureString(item.Text,chosen).Width+chosen.Height)*.7072f+3;
+            float px=item.Point.X+7,py=item.Point.Y-7;
+            var box=new RectangleF(px,py-side,side,side);
+            if(plot.Contains(box)&&(!occupied.Any(r=>r.IntersectsWith(box))||item.Selected)){
+                placements.Add(Tuple.Create(item,px,py,-45f,box));occupied.Add(box);
+            }else if(item.Selected){
+                // In a very small control, keep the chosen time legible within
+                // the plot without changing the slope of the text.
+                px=Math.Max(plot.Left,Math.Min(plot.Right-side,px));py=Math.Max(plot.Top+side,Math.Min(plot.Bottom,py));
+                box=new RectangleF(px,py-side,side,side);placements.Add(Tuple.Create(item,px,py,-45f,box));occupied.Add(box);
+            }
+        }
+        foreach(var place in placements.OrderBy(p=>p.Item1.Selected)){var state=g.Save();g.SetClip(plot);if(place.Item1.Selected)using(var background=new SolidBrush(Color.FromArgb(220,GtcTheme.Surface)))g.FillRectangle(background,place.Item5);g.TranslateTransform(place.Item2,place.Item3);g.RotateTransform(place.Item4);g.DrawString(place.Item1.Text,place.Item1.Selected?bold:font,ink,0,-font.Height/2f);g.Restore(state);}
     }
     protected override void OnPaint(PaintEventArgs e){
         base.OnPaint(e);var g=e.Graphics;float scale=g.DpiX/96f;g.ScaleTransform(scale,scale);g.SmoothingMode=SmoothingMode.AntiAlias;g.TextRenderingHint=System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
-        float w=Width/scale,h=Height/scale;hits.Clear();dots.Clear();using(var font=GtcTypography.Create(10,false))using(var bold=GtcTypography.Create(12,true))using(var ink=new SolidBrush(GtcTheme.Text))using(var muted=new SolidBrush(GtcTheme.Muted)){
+        float w=Width/scale,h=Height/scale;hits.Clear();dots.Clear();using(var font=GtcTypography.Create(10,false))using(var bold=GtcTypography.Create(12,true))using(var labelBold=GtcTypography.Create(10,true))using(var ink=new SolidBrush(GtcTheme.Text))using(var muted=new SolidBrush(GtcTheme.Muted)){
             if(Record==null){g.DrawString(AppLanguage.T("Escolhe um piloto com voltas disponíveis."),font,muted,20,22);return;}
             var all=Record.Points(Stint);var clean=all.Where(l=>l.Clean&&DriverLapAnalysis.Value(l,Metric).HasValue).ToList();var points=all.Where(l=>(ShowOther||l.Clean)&&DriverLapAnalysis.Value(l,Metric).HasValue).ToList();var baseline=DriverLapAnalysis.Reference(all);
             double? reference=ShowTarget?(Metric==LapMetric.Lap?(double?)Target:DriverLapAnalysis.Value(baseline,Metric)):null;
@@ -44,8 +62,8 @@ public sealed class DriverAnalysisChart:Control {
             if(h<210||w<300)return;AnalysisLegend.Draw(g,w,h-AnalysisLegend.Height,font,caption,reference.HasValue,true,Metric==LapMetric.Lap);
             if(points.Count==0){g.DrawString(AppLanguage.T(Metric==LapMetric.Lap?"Sem voltas limpas. Ativa «Incluir outras voltas» para consultar as restantes.":"Sem tempos deste setor na seleção. Os setores ausentes não são estimados."),font,ink,new RectangleF(24,85,w-48,h-190));return;}
             var scaled=ScaleLaps(Record,points);if(scaled.Count==0){g.DrawString(AppLanguage.T("Sem voltas fora das boxes para definir a escala."),font,muted,24,90);return;}double min=scaled.Min(l=>DriverLapAnalysis.Value(l,Metric).Value),max=scaled.Max(l=>DriverLapAnalysis.Value(l,Metric).Value);double pad=Math.Max(.15,(max-min)*.20);min=Math.Max(0,min-pad);max+=pad;
-            var plot=new RectangleF(78,88,Math.Max(30,w-126),Math.Max(20,h-AnalysisLegend.Height-128));Func<double,float> y=time=>plot.Bottom-(float)((time-min)/(max-min))*plot.Height;
-            int from=Stint==null||Stint.Number==0?1:Stint.AfterLap+1,to=Math.Max(from+1,Stint==null||Stint.Number==0?Record.TotalLaps:Stint.ThroughLap);Func<double,float> x=lap=>plot.Left+(float)((lap-from)/(to-from))*plot.Width;
+            var plot=new RectangleF(78,88,Math.Max(30,w-126),Math.Max(20,h-AnalysisLegend.Height-128));float labelRoom=Math.Min(78,Math.Min(plot.Width*.25f,plot.Height*.30f));Func<double,float> y=time=>plot.Bottom-8-(float)((time-min)/(max-min))*(plot.Height-labelRoom-16);
+            int from=Stint==null||Stint.Number==0?1:Stint.AfterLap+1,to=Math.Max(from+1,Stint==null||Stint.Number==0?Record.TotalLaps:Stint.ThroughLap);Func<double,float> x=lap=>plot.Left+7+(float)((lap-from)/(to-from))*(plot.Width-labelRoom-14);
             using(var grid=new Pen(GtcTheme.Border,1))for(int tick=0;tick<5;tick++){double time=min+(max-min)*tick/4;float line=y(time);g.DrawLine(grid,plot.Left,line,plot.Right,line);string label=DriverLapAnalysis.Format(time,Metric);g.DrawString(label,font,muted,plot.Left-g.MeasureString(label,font).Width-9,line-8);}
             var clip=g.Save();g.SetClip(plot);
             if(reference.HasValue){if(Metric==LapMetric.Lap){double low=reference.Value-Tolerance,high=reference.Value+Tolerance;using(var band=new SolidBrush(Color.FromArgb(22,GtcTheme.Accent)))g.FillRectangle(band,plot.Left,y(high),plot.Width,y(low)-y(high));using(var pen=new Pen(GtcTheme.Muted,1)){pen.DashStyle=DashStyle.Dash;g.DrawLine(pen,plot.Left,y(low),plot.Right,y(low));g.DrawLine(pen,plot.Left,y(high),plot.Right,y(high));}}using(var pen=new Pen(GtcTheme.Accent,2))g.DrawLine(pen,plot.Left,y(reference.Value),plot.Right,y(reference.Value));}
@@ -54,9 +72,10 @@ public sealed class DriverAnalysisChart:Control {
             int markerIndex=0;foreach(var marker in Record.Markers().Where(m=>m.AtLap>=from-.5&&m.AtLap<=to+.5)){float px=Math.Max(plot.Left,Math.Min(plot.Right,x(marker.AtLap)));using(var pen=new Pen(GtcTheme.Accent,1.5f)){pen.DashStyle=marker.Approximate?DashStyle.Dot:DashStyle.Dash;g.DrawLine(pen,px,plot.Top,px,plot.Bottom);}g.DrawString("PIT"+(marker.Approximate?" ~":""),font,ink,Math.Min(px+3,plot.Right-35),plot.Top-19-(markerIndex++%2)*14);hits.Add(new KeyValuePair<PointF,string>(new PointF(px*scale,(plot.Top-10)*scale),marker.Label));}
             PointF? lastWear=null;int lastNumber=0;foreach(var lap in all){double? wear=GtcHistoryMerge.CsvAverageWear(lap);if(!wear.HasValue){lastWear=null;continue;}var point=new PointF(x(lap.Number),plot.Bottom-(float)(wear.Value/100)*plot.Height);if(lastWear.HasValue&&lap.Number==lastNumber+1)using(var pen=new Pen(Color.FromArgb(150,115,180,230),2))g.DrawLine(pen,lastWear.Value,point);using(var brush=new SolidBrush(Color.FromArgb(180,115,180,230)))g.FillEllipse(brush,point.X-2,point.Y-2,4,4);lastWear=point;lastNumber=lap.Number;}
             if(all.Any(l=>GtcHistoryMerge.CsvAverageWear(l).HasValue)){g.DrawString("100%",font,muted,plot.Right+3,plot.Top);g.DrawString("0%",font,muted,plot.Right+3,plot.Bottom-12);g.DrawString(AppLanguage.T("Desgaste médio dos pneus · escala direita"),font,muted,Math.Max(18,w-310),55);}
-            foreach(var lap in points){double value=DriverLapAnalysis.Value(lap,Metric).Value;float px=x(lap.Number),py=Math.Max(plot.Top+5,Math.Min(plot.Bottom-5,y(value)));DiagonalLabel(g,DriverLapAnalysis.Format(value,Metric),font,ink,px,py,plot);bool isPit=PitLap(Record,lap);using(var brush=new SolidBrush(AnalysisLegend.Point(lap.Clean&&!isPit,value,reference,Metric==LapMetric.Lap?(double?)Tolerance:null)))g.FillEllipse(brush,px-4,py-4,8,8);if(!lap.Clean||isPit)using(var pen=new Pen(isPit?GtcTheme.Accent:GtcTheme.Text,1.4f)){g.DrawLine(pen,px-5,py-5,px+5,py+5);g.DrawLine(pen,px-5,py+5,px+5,py-5);}if(lap.Number==SelectedLap)using(var pen=new Pen(GtcTheme.Text,1.5f))g.DrawEllipse(pen,px-8,py-8,16,16);
+            var pointLabels=new List<PointLabel>();foreach(var lap in points){double value=DriverLapAnalysis.Value(lap,Metric).Value;float px=x(lap.Number),py=Math.Max(plot.Top+5,Math.Min(plot.Bottom-5,y(value)));pointLabels.Add(new PointLabel{Text=DriverLapAnalysis.Format(value,Metric),Point=new PointF(px,py),Selected=lap.Number==SelectedLap});bool isPit=PitLap(Record,lap);using(var brush=new SolidBrush(AnalysisLegend.Point(lap.Clean&&!isPit,value,reference,Metric==LapMetric.Lap?(double?)Tolerance:null)))g.FillEllipse(brush,px-4,py-4,8,8);if(!lap.Clean||isPit)using(var pen=new Pen(isPit?GtcTheme.Accent:GtcTheme.Text,1.4f)){g.DrawLine(pen,px-5,py-5,px+5,py+5);g.DrawLine(pen,px-5,py+5,px+5,py-5);}if(lap.Number==SelectedLap)using(var pen=new Pen(GtcTheme.Text,1.5f))g.DrawEllipse(pen,px-8,py-8,16,16);
                 string tip="Volta "+lap.Number+" · "+DriverLapAnalysis.Name(Metric)+" "+DriverLapAnalysis.Format(value,Metric)+(reference.HasValue?" · "+TrainingMath.Delta(value-reference.Value):"")+"\n"+(lap.DataSource=="local"?"Apoio local · ":"GTC · ")+(PitLap(Record,lap)?"Volta de entrada/saída das boxes · ":"")+(lap.Valid==false?"Inválida":lap.PossiblyInvalid?"Possivelmente inválida · sem tempo GTC":lap.Clean?"Válida, sem boxes":"Dados / validade incompletos");if(lap.AtUtc.HasValue)tip+=" · "+lap.AtUtc.Value.ToLocalTime().ToString("dd/MM HH:mm:ss");tip+="\n"+GtcHistoryMerge.TireSummary(lap)+"\nClica para consultar esta volta.";hits.Add(new KeyValuePair<PointF,string>(new PointF(px*scale,py*scale),tip));dots[lap.Number]=new PointF(px*scale,py*scale);
             }
+            DrawPointLabels(g,pointLabels,font,labelBold,ink,plot);
         }
     }
     protected override void OnMouseMove(MouseEventArgs e){base.OnMouseMove(e);var hit=hits.FirstOrDefault(d=>Math.Abs(d.Key.X-e.X)<12&&Math.Abs(d.Key.Y-e.Y)<12);string text=hit.Value;if(text!=lastTip){lastTip=text;tooltip.SetToolTip(this,text);}}

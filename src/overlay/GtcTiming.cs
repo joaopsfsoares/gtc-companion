@@ -34,6 +34,7 @@ public sealed partial class TimingOverlay : Form {
     readonly System.Windows.Forms.Timer lifecycle = new System.Windows.Forms.Timer { Interval = 1000 };
     readonly System.Windows.Forms.Timer liveTimer = new System.Windows.Forms.Timer { Interval = 100 };
     readonly System.Windows.Forms.Timer focusTimer = new System.Windows.Forms.Timer { Interval = 400 };
+    ShortcutHint shortcutHint;
     readonly HttpClient focusHttp = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
     readonly SpectatorLapTracker spectator = new SpectatorLapTracker();
     bool focusBusy;
@@ -117,11 +118,12 @@ public sealed partial class TimingOverlay : Form {
         tray.ContextMenuStrip = menu; tray.Visible = true; tray.DoubleClick += (s,e) => ShowSettings();
         poll.Tick += async (s,e) => await RefreshData();
         lifecycle.Tick += (s,e) => TickLifecycle();
-        liveTimer.Tick += (s,e) => {ApplyCommands();UpdateLive();};
+        shortcutHint=new ShortcutHint(this);
+        liveTimer.Tick += (s,e) => {ApplyCommands();UpdateLive();shortcutHint.Update(settings.Shortcuts);};
         focusTimer.Tick += async (s,e) => await RefreshSpectator();
         Shown += async (s,e) => { RegisterKeys(); poll.Start(); lifecycle.Start(); liveTimer.Start(); focusTimer.Start(); await RefreshData(); };
         FormClosing+=(s,e)=>{if(dragging)FinishMove();};
-        FormClosed += (s,e) => { poll.Stop(); lifecycle.Stop(); liveTimer.Stop(); focusTimer.Stop(); scoring.Dispose();SynchronizeRecords(true);recordRepository.Dispose(); if(settingsDialog!=null)settingsDialog.Close(); SaveSettings(); Write("positions-session.json",positions); if(shortcutRegistration!=null)shortcutRegistration.Dispose();tray.Dispose(); http.Dispose(); focusHttp.Dispose(); };
+        FormClosed += (s,e) => { poll.Stop(); lifecycle.Stop(); liveTimer.Stop(); focusTimer.Stop();shortcutHint.Dispose(); scoring.Dispose();SynchronizeRecords(true);recordRepository.Dispose(); if(settingsDialog!=null)settingsDialog.Close(); SaveSettings(); Write("positions-session.json",positions); if(shortcutRegistration!=null)shortcutRegistration.Dispose();tray.Dispose(); http.Dispose(); focusHttp.Dispose(); };
     }
     async Task RefreshSpectator(){
         if(focusBusy||IsDisposed)return;focusBusy=true;
@@ -191,7 +193,7 @@ public sealed partial class TimingOverlay : Form {
         string companion=Environment.GetEnvironmentVariable("GTC_COMPANION_DATA");if(string.IsNullOrWhiteSpace(companion))return;
         try{string directory=Path.Combine(companion,"stint-commands");Directory.CreateDirectory(directory);string target=Path.Combine(directory,DateTime.UtcNow.Ticks.ToString("D19")+"-"+Guid.NewGuid().ToString("N")+".txt");File.WriteAllText(target+".tmp",command+"="+(value?"1":"0"));File.Move(target+".tmp",target);}catch(Exception){}
     }
-    void ToggleHidden() { userHidden = !userHidden; if(userHidden)Hide(); else Show();SendStintShortcut("visible",!userHidden); }
+    void ToggleHidden(bool sync=true) { userHidden = !userHidden; if(userHidden)Hide(); else Show();if(sync)SendStintShortcut("visible",!userHidden); }
     void ToggleLock() {
         if(!locked&&dragging)FinishMove();
         locked = !locked;
@@ -259,9 +261,9 @@ public sealed partial class TimingOverlay : Form {
             try{
                 File.Move(file,processing);var patch=json.Deserialize<OverlayPatch>(File.ReadAllText(processing));if(patch==null)continue;
                 if(!ApplyShortcutRequest(patch))continue;
-                bool previousCompact=settings.Compact;patch.Apply(settings);if(previousCompact!=settings.Compact)SendStintShortcut("compact",settings.Compact);poll.Interval=settings.RefreshSeconds*1000;Opacity=settings.OpacityPercent/100d;
+                if(patch.Language!=null)AppLanguage.Set(patch.Language);bool previousCompact=settings.Compact;patch.Apply(settings);if(previousCompact!=settings.Compact)SendStintShortcut("compact",settings.Compact);poll.Interval=settings.RefreshSeconds*1000;Opacity=settings.OpacityPercent/100d;
                 if(patch.Locked.HasValue&&locked!=patch.Locked.Value)ToggleLock();
-                if(patch.Visible.HasValue&&(!userHidden)!=patch.Visible.Value)ToggleHidden();
+                if(patch.Visible.HasValue&&(!userHidden)!=patch.Visible.Value)ToggleHidden(false);
                 ResizeOverlay();ApplyPosition();SaveSettings();UpdateShortcutLabels();Invalidate();
                 if(patch.Shortcuts!=null)ShortcutReply(patch,true,"Atalhos atualizados.");
             }catch(Exception){}finally{try{if(File.Exists(processing))File.Delete(processing);}catch{}}
@@ -310,11 +312,11 @@ public sealed partial class TimingOverlay : Form {
     static readonly Color Ink=GtcTheme.Text, Muted=GtcTheme.Muted, GtcOrange=GtcTheme.Accent, Purple=Color.FromArgb(193,133,255), Green=Color.FromArgb(90,228,165), Red=Color.FromArgb(255,112,126);
     static string Delta(double? value) { return !value.HasValue?"—":(value.Value>0?"+":"")+value.Value.ToString("0.000",CultureInfo.GetCultureInfo("pt-PT")); }
     static Color DeltaColor(double? value) { return !value.HasValue?Muted:value.Value < -0.0005?Green:value.Value > 0.0005?Red:Ink; }
-    void Label(Graphics g,string text,float x,float y,float width,int size,Color color,bool bold=false,bool right=false,bool center=false) {
+    void Label(Graphics g,string text,float x,float y,float width,int size,Color color,bool bold=false,bool right=false,bool center=false,bool translate=true) {
         using(var font=GtcTypography.Create(size,bold))
         using(var brush=new SolidBrush(color))
         using(var format=new StringFormat { Alignment=center?StringAlignment.Center:right?StringAlignment.Far:StringAlignment.Near,LineAlignment=StringAlignment.Center,Trimming=StringTrimming.EllipsisCharacter,FormatFlags=StringFormatFlags.NoWrap })
-            g.DrawString(text,font,brush,new RectangleF(x,y,width,26),format);
+            g.DrawString(translate?AppLanguage.T(text):text,font,brush,new RectangleF(x,y,width,26),format);
     }
     public void PaintPanel(Graphics g) {
         g.SmoothingMode=SmoothingMode.AntiAlias; g.TextRenderingHint=System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
@@ -351,7 +353,7 @@ public sealed partial class TimingOverlay : Form {
             }
             float activitySpace=settings.ShowDriverActivity?11:0;
             if(settings.ShowDriverActivity){var presence=driverIdeals.Presence(row,snapshot==null||snapshot.activeRound==null?"":snapshot.activeRound.trackName,scoring.Activity,DateTime.UtcNow);if(presence!=DriverPresence.Unknown)using(var dot=new SolidBrush(presence==DriverPresence.OnTrack?Green:presence==DriverPresence.InPits?GtcOrange:Muted))g.FillEllipse(dot,nameX,y+10,6,6);}
-            Label(g,row.driverName,nameX+activitySpace,y,nameWidth-activitySpace,14,c,mine);
+            Label(g,row.driverName,nameX+activitySpace,y,nameWidth-activitySpace,14,c,mine,false,false,false);
             Label(g,TimingData.LapCount(row.lapsAccumulated),230,y,48,13,c,false,true);
             Label(g,TimingData.Lap(row.bestLapTime),286,y,88,14,c,true,true);
             Label(g,idx==0?"—":TimingData.Gap(row.bestLapTime-rows[0].bestLapTime),378,y,72,13,mine?GtcOrange:Muted,false,true);
@@ -393,7 +395,7 @@ public sealed partial class TimingOverlay : Form {
     }
     [STAThread] public static int Main(string[] args) {
         ServicePointManager.SecurityProtocol=SecurityProtocolType.Tls12;
-        SetProcessDPIAware(); Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
+        SetProcessDPIAware(); Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);AppLanguage.Set(Environment.GetEnvironmentVariable("GTC_UI_LANGUAGE"));AppLanguage.Watch();
         try {
             if(args.Length>1 && args[0]=="--self-test") { SelfTest(args[1]);return 0; }
             if(args.Length>1 && args[0]=="--render-settings") {

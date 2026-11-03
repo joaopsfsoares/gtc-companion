@@ -14,7 +14,7 @@ public static class LapTelemetryTests {
         try{
             var s=new LiveSample{Driver="Joao",Track="Pista",Car="Carro",Slot=17,Realtime=true,Laps=2,LapStart=20,SessionTime=21};
             using(var w=new LapTelemetryWriter(dir)){
-                w.Observe(s,f);string first=w.CurrentFile;Require(first.Contains("parcial"),"volta iniciada a meio marcada como parcial");w.Observe(s,f);w.Close();Require(File.ReadAllLines(first).Length==2,"amostra repetida ignorada");
+                w.Observe(s,f);string first=w.CurrentFile;Require(first.Contains("parcial"),"volta iniciada a meio marcada como parcial");w.Observe(null,null);f.Time+=.1;w.Observe(s,f);w.Observe(s,f);w.Close();Require(File.ReadAllLines(first).Length==3,"falha transitória preserva ficheiro e amostra repetida é ignorada");
                 s.SessionTime=30;s.Laps=3;s.LapStart=30;f.Time=30.1;f.LapStart=30;w.Observe(s,f);string second=w.CurrentFile;w.Close();Require(first!=second&&File.Exists(second),"nova volta em ficheiro separado");
                 s.Slot=18;w.Observe(s,f);Require(Directory.GetFiles(dir).Length==2,"não gravar o carro errado");
             }

@@ -13,6 +13,8 @@ public sealed class TrainingHud:Form {
     bool locked=true,dragging,compact;Point mouseStart,windowStart;
     public TrainingRun Run;public string Notice;
     public string MoveShortcut;
+    public OverlayShortcuts Shortcuts; ShortcutHint shortcutHint;
+    public void UpdateShortcutHint(){if(shortcutHint==null)shortcutHint=new ShortcutHint(this);shortcutHint.Update(Shortcuts);}
     public bool IsCompact{get{return compact;}}
     protected override bool ShowWithoutActivation{get{return true;}}
     protected override CreateParams CreateParams{get{var p=base.CreateParams;p.ExStyle|=0x80|0x08000000|(locked?0x20:0);return p;}}
@@ -22,12 +24,13 @@ public sealed class TrainingHud:Form {
     public void SetLocked(bool value){if(value)Lock();else Unlock();}
     public void SetCompact(bool value){if(compact==value)return;compact=value;ClientSize=new Size((int)(480*scale),(int)((compact?88:177)*scale));Invalidate();}
     protected override void WndProc(ref Message message){if(message.Msg==0x21){message.Result=new IntPtr(3);return;}base.WndProc(ref message);}
+    protected override void Dispose(bool disposing){if(disposing&&shortcutHint!=null){shortcutHint.Dispose();shortcutHint=null;}base.Dispose(disposing);}
     protected override void OnMouseDown(MouseEventArgs e){base.OnMouseDown(e);if(locked||e.Button!=MouseButtons.Left)return;if(e.X/scale>=350&&e.Y/scale<29){Lock(true);return;}dragging=true;mouseStart=Cursor.Position;windowStart=Location;Capture=true;}
     protected override void OnMouseMove(MouseEventArgs e){base.OnMouseMove(e);if(dragging)Location=new Point(windowStart.X+Cursor.Position.X-mouseStart.X,windowStart.Y+Cursor.Position.Y-mouseStart.Y);}
     protected override void OnMouseUp(MouseEventArgs e){base.OnMouseUp(e);if(dragging){dragging=false;Capture=false;moved(Location);}}
     protected override void OnPaint(PaintEventArgs e){
         base.OnPaint(e);var g=e.Graphics;g.ScaleTransform(scale,scale);g.TextRenderingHint=System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
-        Action<string,int,int,int,Color,bool> text=(value,x,y,size,color,bold)=>{using(var font=GtcTypography.Create(size,bold))using(var brush=new SolidBrush(color))g.DrawString(value,font,brush,x,y);};
+        Action<string,int,int,int,Color,bool> text=(value,x,y,size,color,bold)=>{using(var font=GtcTypography.Create(size,bold))using(var brush=new SolidBrush(color))g.DrawString(AppLanguage.T(value),font,brush,x,y);};
         text(!locked?"ARRASTA · "+(string.IsNullOrWhiteSpace(MoveShortcut)?"DUPLO CLIQUE PARA BLOQUEAR":MoveShortcut+" PARA BLOQUEAR"):"STINT",14,10,10,GtcTheme.Accent,true);
         if(!locked){using(var pen=new Pen(GtcTheme.Accent))g.DrawRectangle(pen,350,5,116,23);text("CONCLUIR",365,9,10,GtcTheme.Accent,true);}
         if(Run==null){text("Inicia um stint para ver os tempos.",14,36,16,GtcTheme.Muted,false);return;}

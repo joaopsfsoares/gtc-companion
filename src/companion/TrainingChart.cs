@@ -21,11 +21,11 @@ public sealed class TrainingChart:Control {
     protected override void OnPaint(PaintEventArgs e){
         base.OnPaint(e);var g=e.Graphics;float scale=g.DpiX/96f;g.ScaleTransform(scale,scale);g.SmoothingMode=SmoothingMode.AntiAlias;g.TextRenderingHint=System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
         float w=Width/scale,h=Height/scale;dots.Clear();using(var font=GtcTypography.Create(10,false))using(var ink=new SolidBrush(GtcTheme.Text))using(var muted=new SolidBrush(GtcTheme.Muted)){
-            if(run==null){g.DrawString("As voltas do stint vão aparecer aqui.",font,muted,20,22);return;}
+            if(run==null){g.DrawString(AppLanguage.T("As voltas do stint vão aparecer aqui."),font,muted,20,22);return;}
             var options=run.Options;var baseline=DriverLapAnalysis.Reference(run.Laps);var reference=Reference();var points=run.Laps.Where(l=>DriverLapAnalysis.Value(l,Metric).HasValue).ToList();
             string caption=Metric==LapMetric.Lap?"Alvo do treino "+TimingData.Lap(options.Target)+" · janela ±"+options.Tolerance.ToString("0.00")+" s":baseline==null?"Sem volta válida de referência":DriverLapAnalysis.Name(Metric)+" da melhor volta válida · V"+baseline.Number+": "+DriverLapAnalysis.Format(reference,Metric);
             if(h<180)return;AnalysisLegend.Draw(g,w,h-AnalysisLegend.Height,font,caption,reference.HasValue,false,Metric==LapMetric.Lap);
-            if(points.Count==0){g.DrawString(!string.IsNullOrWhiteSpace(EmptyMessage)?EmptyMessage:Metric==LapMetric.Lap?"Sem voltas concluídas.":"Sem setores guardados neste stint. Os registos antigos podem não conter setores.",font,muted,new RectangleF(20,22,w-40,h-125));return;}
+            if(points.Count==0){g.DrawString(AppLanguage.T(!string.IsNullOrWhiteSpace(EmptyMessage)?EmptyMessage:Metric==LapMetric.Lap?"Sem voltas concluídas.":"Sem setores guardados neste stint. Os registos antigos podem não conter setores."),font,muted,new RectangleF(20,22,w-40,h-125));return;}
             double min=points.Min(l=>DriverLapAnalysis.Value(l,Metric).Value),max=points.Max(l=>DriverLapAnalysis.Value(l,Metric).Value);if(reference.HasValue){double window=Metric==LapMetric.Lap?options.Tolerance:0;min=Math.Min(reference.Value-window,min);max=Math.Max(reference.Value+window,max);}double padding=Math.Max(.15,(max-min)*.18);min=Math.Max(0,min-padding);max+=padding;
             var assessment=TrainingAssessment.Evaluate(run);g.DrawString(assessment.Label+" · "+assessment.Description,font,ink,18,12);
             var tire=run.Laps.FirstOrDefault(l=>l.Number==tireLap)??run.Laps.LastOrDefault(l=>!string.IsNullOrWhiteSpace(l.TireCompound));g.DrawString(TrainingHistoryView.TireSummary(tire),font,muted,18,28);

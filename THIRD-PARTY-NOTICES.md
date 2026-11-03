@@ -1,29 +1,29 @@
-# Licenciamento e recursos de terceiros
+# Licensing and third-party resources
 
-O código original do GTC Companion e do overlay GTC Timing é disponibilizado sob a GNU General Public License, versão 3 (SPDX: `GPL-3.0-only`). Copyright (C) 2026 GTC Companion contributors. O texto integral está em `LICENSE`.
+The original GTC Companion and GTC Timing overlay code is made available under the GNU General Public License, version 3 (SPDX: `GPL-3.0-only`). Copyright (C) 2026 GTC Companion contributors. The full text is in `LICENSE`.
 
-## Fontes Ubuntu
+## Ubuntu Fonts
 
-As fontes Ubuntu Regular, Medium e Bold mantêm a Ubuntu Font Licence 1.0 e os seus avisos originais. A licença está em `FONT-LICENCE.txt` no pacote da aplicação e em `assets/fonts/FONT-LICENCE.txt` no código-fonte. Estas fontes não são relicenciadas sob GPLv3.
+Ubuntu Regular, Medium and Bold fonts retain the Ubuntu Font License 1.0 and their original notices. The license is at `FONT-LICENCE.txt` in the application package and at `assets/fonts/FONT-LICENCE.txt` in the source code. These fonts are not relicensed under GPLv3.
 
-## Identidade GTC Race Center
+## GTC Race Center Identity
 
-O nome, os logótipos e os restantes elementos da identidade GTC Race Center pertencem aos respetivos titulares. A licença do nosso código não concede direitos sobre essas marcas ou recursos gráficos. A aplicação é um projeto da comunidade, sem afiliação oficial declarada.
+The name, logos and other elements of the GTC Race Center identity belong to their respective owners. Our code license does not grant rights to these trademarks or graphic resources. The application is a community project, with no official affiliation declared.
 
-Fonte dos elementos gráficos: https://esports.gtcracecenter.com/
+Source of graphic elements: https://esports.gtcracecenter.com/
 
-## Classificação e aplicações externas
+## Classification and external applications
 
-Os dados da classificação são consultados na API da GTC e não fazem parte do código licenciado neste repositório. Não são incluídas classificações pessoais nem configurações de acesso nos pacotes de distribuição.
+Rating data is queried from the GTC API and is not part of the code licensed in this repository. No personal ratings or access settings are included in distribution packages.
 
-rFactor 2 e Steam são instalados separadamente e mantêm as suas próprias condições. A distribuição inclui TinyPedal 2.52.0 (GPL-3.0-or-later) e Crew Chief 4.19.5.8 (MIT). A biblioteca Python do TinyPedal contém alterações do Companion; os fontes modificados constam de `SOURCE.zip/assets/tinypedal-live`. Mantêm-se as licenças e avisos dos projetos e das suas dependências. Os pacotes de voz do Crew Chief não são incluídos. A licença MIT do código do Crew Chief não altera as condições próprias dos seus sons ou de componentes de terceiros.
+rFactor 2 and Steam are installed separately and maintain their own conditions. The distribution includes TinyPedal 2.52.0 (GPL-3.0-or-later) and Crew Chief 4.19.5.8 (MIT). TinyPedal's Python library contains Companion changes; the modified sources are listed in `SOURCE.zip/assets/tinypedal-live`. Licenses and notices for projects and their dependencies are maintained. Crew Chief voice packs are not included. The MIT license of Crew Chief's code does not change the terms of its own sounds or third-party components.
 
-As páginas nativas TinyPedal e Crew Chief utilizam os formatos de configuração destes projetos. O esquema de referência TinyPedal foi derivado das definições oficiais da versão 2.52.0, Copyright (C) 2022-2026 TinyPedal developers, sob GPL-3.0-or-later. A cópia editável do esquema está em `assets/engines/tiny-defaults.json`, incluída no código-fonte correspondente. A licença está em `TINYPEDAL-LICENSE.txt` no pacote e em `assets/engines/TINYPEDAL-LICENSE.txt` no código-fonte.
+The native TinyPedal and Crew Chief pages use the configuration formats from these projects. The TinyPedal reference schema was derived from the official definitions of version 2.52.0, Copyright (C) 2022-2026 TinyPedal developers, under GPL-3.0-or-later. The editable copy of the schema is in `assets/engines/tiny-defaults.json`, included in the corresponding source code. The license is at `TINYPEDAL-LICENSE.txt` in the package and at `assets/engines/TINYPEDAL-LICENSE.txt` in the source code.
 
-O esquema de referência do Crew Chief foi derivado de `CrewChiefV4/Properties/Settings.settings`, Copyright (c) 2019-2024 Britton IT Ltd, sob MIT. Está em `assets/engines/crew-defaults.json`. O aviso de copyright e a licença MIT são preservados em `CREWCHIEF-LICENSE.txt` no pacote e em `assets/engines/CREWCHIEF-LICENSE.txt` no código-fonte. As revisões e ligações dos dois projetos estão em `assets/engines/PROVENANCE.json`.
+The Crew Chief reference schema was derived from `CrewChiefV4/Properties/Settings.settings`, Copyright (c) 2019-2024 Britton IT Ltd, under MIT. It is in `assets/engines/crew-defaults.json`. The copyright notice and MIT License are preserved in `CREWCHIEF-LICENSE.txt` in the package and in `assets/engines/CREWCHIEF-LICENSE.txt` in the source code. Revisions and links for the two projects are in `assets/engines/PROVENANCE.json`.
 
-O leitor de telemetria implementa em C# o formato de memória partilhada rFactor2SharedMemoryMapPlugin 3.7. As definições de campos consultadas estão identificadas no código (`TonyWhitley/pyRfactor2SharedMemory`, `rF2data.py`). O pacote inclui o plugin 3.7.15.1, sem alterações, com licença GPLv3, README original e proveniência em `components/rF2SharedMemoryMap`. As fontes correspondentes da revisão `48aa12dbb68849923870acd8e68044c46c3d83eb` acompanham o pacote em `third-party-source/rF2SharedMemoryMap-3.7.15.1-source.zip`. A instalação é opcional e preserva os plugins e as preferências existentes. Projeto oficial: https://github.com/TheIronWolfModding/rF2SharedMemoryMapPlugin
+The telemetry reader implements the rFactor2SharedMemoryMapPlugin 3.7 shared memory format in C#. The field definitions consulted are identified in the code (`TonyWhitley/pyRfactor2SharedMemory`, `rF2data.py`). The package includes plugin 3.7.15.1, without changes, with GPLv3 license, original README and provenance in `components/rF2SharedMemoryMap`. Corresponding sources from revision `48aa12dbb68849923870acd8e68044c46c3d83eb` are included in the package in `third-party-source/rF2SharedMemoryMap-3.7.15.1-source.zip`. Installation is optional and preserves existing plugins and preferences. Official project: https://github.com/TheIronWolfModding/rF2SharedMemoryMapPlugin
 
-## Fontes e bibliotecas dos motores
+## Engine sources and libraries
 
-`third-party-source/README.md` identifica as versões e as fontes correspondentes. O ZIP TinyPedal inclui o código e os submódulos nas revisões fixadas. Qt, PySide2 e shiboken mantêm LGPLv3 e as bibliotecas partilhadas originais substituíveis; não é imposto qualquer bloqueio à sua substituição nem à depuração de versões modificadas. Os avisos PSF, BSD, MIT e GPL dos restantes componentes permanecem nas pastas originais. O código e os scripts do Companion estão em `SOURCE.zip`. Os restantes plugins distribuídos nos diretórios dos motores mantêm a instalação própria dos respetivos projetos.
+`third-party-source/README.md` identifies the corresponding versions and sources. The TinyPedal ZIP includes the code and submodules in pinned revisions. Qt, PySide2 and shiboken maintain LGPLv3 and the original replaceable shared libraries; no block is imposed on its replacement or debugging of modified versions. The PSF, BSD, MIT and GPL warnings for the remaining components remain in the original folders. Companion code and scripts are in `SOURCE.zip`. The remaining plugins distributed in the engine directories maintain the installation of their respective projects.

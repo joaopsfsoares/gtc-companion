@@ -24,17 +24,18 @@ $dist=Join-Path $root 'dist'
 New-Item -ItemType Directory -Path $out,$dist -Force | Out-Null
 $icon=Join-Path $root 'assets\gtc.ico'
 $fontArgs=@('Regular','Medium','Bold')|ForEach-Object{'/resource:'+(Join-Path $root ('assets\fonts\Ubuntu-'+$_+'.ttf'))+',Ubuntu'+$_}
+$languageArg='/resource:'+(Join-Path $root 'assets\i18n\en.json')+',GtcEnglish'
 $refs=@('/reference:System.Windows.Forms.dll','/reference:System.Drawing.dll','/reference:System.Net.Http.dll','/reference:System.Web.Extensions.dll','/reference:System.Core.dll','/reference:System.Xml.dll','/reference:System.IO.Compression.dll','/reference:System.IO.Compression.FileSystem.dll')
 $overlay=Join-Path $out 'GTC-Timing.exe'
 $overlaySources=Get-ChildItem -LiteralPath (Join-Path $root 'src\overlay') -Filter '*.cs' | ForEach-Object {$_.FullName}
-& $compiler /nologo /target:winexe /optimize+ ('/out:'+$overlay) ('/win32icon:'+$icon) ('/resource:'+$icon+',GtcIcon') $fontArgs $refs $overlaySources
+& $compiler /nologo /target:winexe /optimize+ ('/out:'+$overlay) ('/win32icon:'+$icon) ('/resource:'+$icon+',GtcIcon') $fontArgs $languageArg $refs $overlaySources
 if($LASTEXITCODE -ne 0){throw 'Falha na compilação do overlay.'}
 if($SigningThumbprint){& (Join-Path $root 'sign.ps1') @signing -FilePath $overlay}
 $app=Join-Path $out 'GTC-Companion.exe'
 $engineArgs=@(('/resource:'+(Join-Path $root 'assets\engines\crew-defaults.json')+',CrewDefaults'),('/resource:'+(Join-Path $root 'assets\engines\tiny-defaults.json')+',TinyDefaults'))
 $companionSources=Get-ChildItem -LiteralPath (Join-Path $root 'src\companion') -Filter '*.cs' | ForEach-Object {$_.FullName}
-foreach($file in @('GtcTheme.cs','GtcTypography.cs','TimingData.cs','RankingHistory.cs','GtcSettingsControls.cs','GtcWindowTheme.cs','OverlayCommands.cs','OverlayShortcuts.cs','LiveLap.cs','DriverActivity.cs','PersonalRecordRepository.cs')){$companionSources+=Join-Path $root ('src\overlay\'+$file)}
-& $compiler /nologo /target:winexe /optimize+ ('/out:'+$app) ('/win32icon:'+$icon) ('/resource:'+$icon+',GtcIcon') ('/resource:'+(Join-Path $root 'assets\gtc-mark.png')+',GtcMark') ('/resource:'+$overlay+',GtcOverlay') $fontArgs $engineArgs $refs $companionSources
+foreach($file in @('GtcTheme.cs','GtcTypography.cs','TimingData.cs','RankingHistory.cs','GtcSettingsControls.cs','GtcWindowTheme.cs','OverlayCommands.cs','OverlayShortcuts.cs','ShortcutHint.cs','AppLanguage.cs','LiveLap.cs','DriverActivity.cs','PersonalRecordRepository.cs')){$companionSources+=Join-Path $root ('src\overlay\'+$file)}
+& $compiler /nologo /target:winexe /optimize+ ('/out:'+$app) ('/win32icon:'+$icon) ('/resource:'+$icon+',GtcIcon') ('/resource:'+(Join-Path $root 'assets\gtc-mark.png')+',GtcMark') ('/resource:'+$overlay+',GtcOverlay') $fontArgs $languageArg $engineArgs $refs $companionSources
 if($LASTEXITCODE -ne 0){throw 'Falha na compilação do launcher.'}
 if($SigningThumbprint){& (Join-Path $root 'sign.ps1') @signing -FilePath $app}
 function Update-TinyLive([string]$directory){
@@ -69,11 +70,11 @@ if(!$CodeOnly){
     Update-TinyLive (Join-Path $dist 'components')
     Copy-Item -LiteralPath (Join-Path $root 'third-party-source') -Destination $dist -Recurse -Force
 }
-$sourceZip=Join-Path $root 'GTC-Companion-source-0.11.13.zip'
+$sourceZip=Join-Path $root 'GTC-Companion-source-0.11.14.zip'
 $sourceFiles=@('src','assets','README.md','SECURITY.md','SIGNING.md','THIRD-PARTY-NOTICES.md','LICENSE','build.ps1','sign.ps1','prepare-components.ps1','prepare-plugin.ps1','.gitignore') | ForEach-Object {Join-Path $root $_}
 Compress-Archive -LiteralPath $sourceFiles -DestinationPath $sourceZip -Force
 Copy-Item -LiteralPath $sourceZip -Destination (Join-Path $dist 'SOURCE.zip') -Force
-$zip=Join-Path $root 'GTC-Companion-0.11.13.zip'
+$zip=Join-Path $root 'GTC-Companion-0.11.14.zip'
 $package=@('GTC-Companion.exe','README.md','FONT-LICENCE.txt','LICENSE','THIRD-PARTY-NOTICES.md','TINYPEDAL-LICENSE.txt','CREWCHIEF-LICENSE.txt','SOURCE.zip') | ForEach-Object {Join-Path $dist $_}
 if(!$CodeOnly){$package+=Join-Path $dist 'components';$package+=Join-Path $root 'third-party-source'}
 Compress-Archive -LiteralPath $package -DestinationPath $zip -Force

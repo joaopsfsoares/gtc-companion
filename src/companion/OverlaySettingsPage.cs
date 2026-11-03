@@ -50,8 +50,9 @@ public sealed partial class CompanionWindow {
         var pages=new Panel[5];var contents=new TableLayoutPanel[5];var nav=new Button[5];string[] names={"Aparência","Classificação","Estado","Atalhos","Stint"};
         for(int i=0;i<5;i++){
             int index=i;pages[i]=new Panel{Dock=DockStyle.Fill,AutoScroll=true,Visible=false};contents[i]=new TableLayoutPanel{Dock=DockStyle.Top,AutoSize=true,ColumnCount=1,Margin=Padding.Empty};contents[i].ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));pages[i].Controls.Add(contents[i]);host.Controls.Add(pages[i]);
-            nav[i]=Button(names[i],104);nav[i].Margin=new Padding(0,0,P(5),0);tabs.Controls.Add(nav[i]);nav[i].Click+=(s,e)=>selectOverlayTab(index);
+            nav[i]=Button(names[i],104);nav[i].Margin=new Padding(0,0,P(5),0);nav[i].Click+=(s,e)=>selectOverlayTab(index);
         }
+        foreach(int index in new[]{0,1,4,2,3})tabs.Controls.Add(nav[index]);
         pages[4].Controls.Clear();pages[4].AutoScroll=false;stintPage.Dock=DockStyle.Fill;stintPage.Visible=true;pages[4].Controls.Add(stintPage);
         selectOverlayTab=index=>{currentOverlayTab=index;for(int i=0;i<5;i++){pages[i].Visible=i==index;nav[i].BackColor=i==index?GtcTheme.AccentSurface:GtcTheme.Input;nav[i].ForeColor=i==index?GtcTheme.Accent:GtcTheme.Text;}pages[index].BringToFront();if(currentPage==3){if(overlayStintLayout!=null)overlayStintLayout(index==4);ResizeForPage(3);}if(refreshOverlay!=null)refreshOverlay();};
         Func<int,string,TableLayoutPanel> card=(page,title)=>{
@@ -65,9 +66,12 @@ public sealed partial class CompanionWindow {
         Func<bool,CheckBox> check=value=>new GtcSettingsCheck{Checked=value,AutoSize=false,Size=new Size(P(24),P(24)),BackColor=GtcTheme.Surface,Cursor=Cursors.Hand};
         Func<object[],int,ComboBox> choice=(options,index)=>{
             var combo=new ComboBox{DropDownStyle=ComboBoxStyle.DropDownList,DrawMode=DrawMode.OwnerDrawFixed,ItemHeight=P(22),Width=P(195),BackColor=GtcTheme.Input,ForeColor=GtcTheme.Text,Font=F(12),FlatStyle=FlatStyle.Flat};combo.Items.AddRange(options);combo.SelectedIndex=Math.Max(0,Math.Min(options.Length-1,index));
-            combo.DrawItem+=(s,e)=>{if(e.Index<0)return;using(var brush=new SolidBrush(GtcTheme.Input))e.Graphics.FillRectangle(brush,e.Bounds);TextRenderer.DrawText(e.Graphics,combo.Items[e.Index].ToString(),combo.Font,e.Bounds,combo.Enabled?GtcTheme.Text:GtcTheme.Muted,TextFormatFlags.Left|TextFormatFlags.VerticalCenter);};return combo;
+            combo.DrawItem+=(s,e)=>{if(e.Index<0)return;using(var brush=new SolidBrush(GtcTheme.Input))e.Graphics.FillRectangle(brush,e.Bounds);TextRenderer.DrawText(e.Graphics,AppLanguage.T(combo.Items[e.Index].ToString()),combo.Font,e.Bounds,combo.Enabled?GtcTheme.Text:GtcTheme.Muted,TextFormatFlags.Left|TextFormatFlags.VerticalCenter);};return combo;
         };
         var appearance=card(0,"POSIÇÃO E TRANSPARÊNCIA");
+        var timingVisible=check(false);var stintVisible=check(false);row(appearance,"Mostrar overlay dos tempos",timingVisible);row(appearance,"Mostrar overlay do stint",stintVisible);
+        timingVisible.CheckedChanged+=(s,e)=>{if(syncingOverlay||building||PreviewOnly)return;try{if(timingVisible.Checked&&!LaunchEngine.Running("GTC-Timing")){ReadInputs();LaunchEngine.StartOverlay(settings,true);}if(LaunchEngine.Running("GTC-Timing")||timingVisible.Checked)SendOverlay(new OverlayPatch{Visible=timingVisible.Checked},true);}catch(Exception ex){Report(ex.Message);}};
+        stintVisible.CheckedChanged+=(s,e)=>{if(syncingOverlay||building||PreviewOnly)return;if(stintVisible.Checked)ShowSharedStint(false);else{trainingShortcutHidden=true;RefreshTrainingHud();}};
         var position=choice(new object[]{"Personalizada","Superior esquerdo","Superior centro","Superior direito","Centro esquerdo","Centro","Centro direito","Inferior esquerdo","Inferior centro","Inferior direito"},prefs.PositionAnchor);
         row(appearance,"Posição no ecrã",position);position.SelectedIndexChanged+=(s,e)=>SendOverlay(new OverlayPatch{PositionAnchor=position.SelectedIndex});
         var sliderPanel=new TableLayoutPanel{ColumnCount=2,RowCount=1,Width=P(195),Height=P(34),Margin=Padding.Empty};sliderPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));sliderPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,P(43)));
@@ -100,6 +104,7 @@ public sealed partial class CompanionWindow {
                 if(!slider.Capture)slider.Value=Math.Max(0,Math.Min(90,100-current.OpacityPercent));
                 lapComparison.SelectedIndex=Math.Max(0,Math.Min(1,current.LapComparison));previousLap.Checked=current.ShowPreviousLap;idealLap.Checked=current.ShowIdealLap;driverIdeals.Checked=current.ShowDriverIdealLaps;activity.Checked=current.ShowDriverActivity;compact.Checked=current.Compact;above.Value=Math.Max(0,Math.Min(10,current.PilotsAbove));below.Value=Math.Max(0,Math.Min(10,current.PilotsBelow));movement.Checked=current.ShowPositionChanges;reference.SelectedIndex=Math.Max(0,Math.Min(2,current.PositionReference));hours.Value=Math.Max(1,Math.Min(168,current.PositionReferenceHours));interval.Value=Math.Max(5,Math.Min(60,current.RefreshSeconds));nearby();references();
                 var status=CompanionStore.Read<Dictionary<string,object>>(Path.Combine(OverlayRoot,"status.json"));bool running=LaunchEngine.Running("GTC-Timing");
+                timingVisible.Checked=running&&status!=null&&status.ContainsKey("visible")&&Convert.ToString(status["visible"]).Equals("True",StringComparison.OrdinalIgnoreCase);stintVisible.Checked=trainingHud!=null&&!trainingHud.IsDisposed&&trainingHud.Visible;
                 Func<string,string> value=key=>status!=null&&status.ContainsKey(key)&&status[key]!=null?Convert.ToString(status[key]):"—";
                 unlocked=running&&value("locked").Equals("False",StringComparison.OrdinalIgnoreCase);move.Text=unlocked?"Terminar ajuste":"Mover overlay";
                 state.Text=running?"Em execução":"Fechado";state.ForeColor=running?Color.FromArgb(90,228,165):GtcTheme.Muted;

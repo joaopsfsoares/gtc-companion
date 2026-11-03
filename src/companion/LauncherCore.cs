@@ -31,13 +31,14 @@ public sealed class LaunchSettings {
     public bool AutoStart {get;set;}
     public bool Borderless {get;set;}
     public bool AutoReplay {get;set;}
+    public string Language {get;set;}
     public List<CompetitionProfile> Competitions {get;set;}
     public string SelectedCompetitionId {get;set;}
     [ScriptIgnore]public string ServerHost {get{var p=CompetitionProfiles.Selected(this);return p==null?"":p.ServerHost;}set{CompetitionProfiles.EnsureSelected(this,true).ServerHost=value;}}
     [ScriptIgnore]public int ServerPort {get{var p=CompetitionProfiles.Selected(this);return p==null?0:p.ServerPort;}set{CompetitionProfiles.EnsureSelected(this,true).ServerPort=value;}}
     [ScriptIgnore]public string ServerPassword {get{var p=CompetitionProfiles.Selected(this);return p==null?"":p.ServerPassword;}set{CompetitionProfiles.EnsureSelected(this,true).ServerPassword=value;}}
     [ScriptIgnore]public int TimingId {get{var p=CompetitionProfiles.Selected(this);return p==null?0:p.TimingId;}set{CompetitionProfiles.EnsureSelected(this,true).TimingId=value;}}
-    public LaunchSettings(){Driver="";GameDirectory="";CrewChiefPath="";TinyPedalPath="";AutoStart=true;Borderless=true;Competitions=new List<CompetitionProfile>();}
+    public LaunchSettings(){Driver="";GameDirectory="";CrewChiefPath="";TinyPedalPath="";Language="pt";AutoStart=true;Borderless=true;Competitions=new List<CompetitionProfile>();}
     [ScriptIgnore]public string JoinUrl {get{return "http://localhost:5397/rest/multiplayer/join?host="+Uri.EscapeDataString(ServerHost??"")+"&port="+ServerPort+"&password="+Uri.EscapeDataString(ServerPassword??"");}}
 }
 public static class ServerAccess {
@@ -141,7 +142,7 @@ public sealed class LaunchEngine : IDisposable {
         string bin=Path.Combine(CompanionStore.Root,"bin");Directory.CreateDirectory(bin);string exe=Path.Combine(bin,"GTC-Timing.exe");
         using(var source=typeof(LaunchEngine).Assembly.GetManifestResourceStream("GtcOverlay"))using(var target=File.Create(exe))source.CopyTo(target);
         var info=new ProcessStartInfo(exe,settingsOnly?"--standalone":""){WorkingDirectory=bin,UseShellExecute=false};
-        info.EnvironmentVariables["GTC_TIMING_DATA"]=root;info.EnvironmentVariables["GTC_TIMING_PREFERENCES"]=prefRoot;info.EnvironmentVariables["GTC_TIMING_LAUNCHER"]=typeof(LaunchEngine).Assembly.Location;info.EnvironmentVariables["GTC_COMPANION_DATA"]=CompanionStore.Root;info.EnvironmentVariables["GTC_TIMING_MANAGED"]="1";info.EnvironmentVariables["GTC_TIMING_DRIVER"]=settings.Driver;info.EnvironmentVariables["GTC_TIMING_ID"]=settings.TimingId.ToString();
+        info.EnvironmentVariables["GTC_TIMING_DATA"]=root;info.EnvironmentVariables["GTC_TIMING_PREFERENCES"]=prefRoot;info.EnvironmentVariables["GTC_TIMING_LAUNCHER"]=typeof(LaunchEngine).Assembly.Location;info.EnvironmentVariables["GTC_COMPANION_DATA"]=CompanionStore.Root;info.EnvironmentVariables["GTC_TIMING_MANAGED"]="1";info.EnvironmentVariables["GTC_TIMING_DRIVER"]=settings.Driver;info.EnvironmentVariables["GTC_TIMING_ID"]=settings.TimingId.ToString();info.EnvironmentVariables["GTC_UI_LANGUAGE"]=settings.Language??"pt";
         using(var process=Process.Start(info))CompanionStore.Write("active-overlay.json",new OverlayInstance{Version=AppInfo.Version,Pid=process.Id,ProfileId=selected.Id,Name=selected.Name,Directory=root,Driver=settings.Driver,TimingId=settings.TimingId,Standalone=settingsOnly,GameStamp=CompetitionProfiles.GameStamp()});
     }
     async Task<object> GetJson(string uri,CancellationToken cancel){using(var request=CancellationTokenSource.CreateLinkedTokenSource(cancel)){request.CancelAfter(2000);using(var response=await http.GetAsync(uri,request.Token)){response.EnsureSuccessStatusCode();return CompanionStore.Json.DeserializeObject(await response.Content.ReadAsStringAsync());}}}

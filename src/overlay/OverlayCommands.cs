@@ -24,6 +24,7 @@ public sealed class OverlayPatch {
     public int? RefreshSeconds {get;set;}
     public bool? Locked {get;set;}
     public bool? Visible {get;set;}
+    public string Language {get;set;}
     public OverlayShortcuts Shortcuts {get;set;}
     public string ShortcutRequestId {get;set;}
     public DateTime? ShortcutExpiresUtc {get;set;}

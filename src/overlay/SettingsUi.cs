@@ -95,7 +95,7 @@ public sealed partial class TimingOverlay {
         var placement=card(0,"POSIÇÃO");
         var position=new ComboBox {DropDownStyle=ComboBoxStyle.DropDownList,DrawMode=DrawMode.OwnerDrawFixed,ItemHeight=px(22),Width=px(202),FlatStyle=FlatStyle.Flat,Font=normal,BackColor=input,ForeColor=Ink};
         position.Items.AddRange(new object[]{"Personalizada","Superior esquerdo","Superior centro","Superior direito","Centro esquerdo","Centro","Centro direito","Inferior esquerdo","Inferior centro","Inferior direito"});position.SelectedIndex=settings.PositionAnchor;
-        position.DrawItem+=(s,e)=>{if(e.Index<0)return;bool selected=(e.State&DrawItemState.Selected)!=0;using(var fill=new SolidBrush(selected?GtcTheme.AccentSurface:input))e.Graphics.FillRectangle(fill,e.Bounds);TextRenderer.DrawText(e.Graphics,position.Items[e.Index].ToString(),normal,e.Bounds,selected?GtcOrange:Ink,TextFormatFlags.Left|TextFormatFlags.VerticalCenter);};
+        position.DrawItem+=(s,e)=>{if(e.Index<0)return;bool selected=(e.State&DrawItemState.Selected)!=0;using(var fill=new SolidBrush(selected?GtcTheme.AccentSurface:input))e.Graphics.FillRectangle(fill,e.Bounds);TextRenderer.DrawText(e.Graphics,AppLanguage.T(position.Items[e.Index].ToString()),normal,e.Bounds,selected?GtcOrange:Ink,TextFormatFlags.Left|TextFormatFlags.VerticalCenter);};
         position.SelectedIndexChanged+=(s,e)=>{settings.PositionAnchor=position.SelectedIndex;ApplyPosition();SaveSettings();};row(placement,"Posição no ecrã",null,position);
         var unlock=check(!locked);unlock.CheckedChanged+=(s,e)=>{if(locked==unlock.Checked)ToggleLock();};row(placement,"Mover livremente","Desbloqueia para arrastar a tabela.",unlock);
         var appearance=card(0,"TRANSPARÊNCIA");
@@ -116,7 +116,7 @@ public sealed partial class TimingOverlay {
         var movementCard=card(1,"POSIÇÕES");var movement=check(settings.ShowPositionChanges);
         movement.CheckedChanged+=(s,e)=>{settings.ShowPositionChanges=movement.Checked;SaveSettings();Invalidate();};row(movementCard,"Lugares ganhos ou perdidos","Mostra a variação junto à posição.",movement);
         var referenceMode=new ComboBox{DropDownStyle=ComboBoxStyle.DropDownList,DrawMode=DrawMode.OwnerDrawFixed,ItemHeight=px(22),Width=px(202),Font=normal,BackColor=input,ForeColor=Ink,FlatStyle=FlatStyle.Flat};
-        referenceMode.DrawItem+=(s,e)=>{if(e.Index<0)return;using(var fill=new SolidBrush(input))e.Graphics.FillRectangle(fill,e.Bounds);TextRenderer.DrawText(e.Graphics,referenceMode.Items[e.Index].ToString(),normal,e.Bounds,referenceMode.Enabled?Ink:Muted,TextFormatFlags.Left|TextFormatFlags.VerticalCenter);};
+        referenceMode.DrawItem+=(s,e)=>{if(e.Index<0)return;using(var fill=new SolidBrush(input))e.Graphics.FillRectangle(fill,e.Bounds);TextRenderer.DrawText(e.Graphics,AppLanguage.T(referenceMode.Items[e.Index].ToString()),normal,e.Bounds,referenceMode.Enabled?Ink:Muted,TextFormatFlags.Left|TextFormatFlags.VerticalCenter);};
         referenceMode.Items.AddRange(new object[]{"Início da sessão","Últimas X horas","Ontem às 00:00"});referenceMode.SelectedIndex=settings.PositionReference;
         row(movementCard,"Comparar desde",null,referenceMode);
         var referenceHours=number(settings.PositionReferenceHours,1,168);row(movementCard,"Número de horas",null,referenceHours);

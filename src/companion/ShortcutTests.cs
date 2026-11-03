@@ -17,6 +17,7 @@ public static class ShortcutTests {
         var duplicate=defaults.Copy();duplicate.Settings=duplicate.View.Copy();if(duplicate.Validate()==null)throw new Exception("Atalhos repetidos têm de ser recusados");
         var invalid=defaults.Copy();invalid.Move=new ShortcutBinding{Key=(int)Keys.A,Modifiers=0};if(invalid.Validate()==null)throw new Exception("Uma letra sem modificador não pode ser global");
         var disabled=defaults.Copy();disabled.Move=new ShortcutBinding();if(disabled.Validate()!=null)throw new Exception("Desativar uma ação tem de ser possível");
+        string hint=ShortcutHint.Format(disabled);if(!hint.Contains("Sem atalho")||!hint.Contains("Ctrl + Alt + G"))throw new Exception("A ajuda deve refletir os atalhos configurados e desativados");
         using(var window=new ShortcutProbeWindow())using(var foreignWindow=new ShortcutProbeWindow())using(var owner=new GlobalShortcutSet(window.Handle,4400))using(var foreign=new GlobalShortcutSet(foreignWindow.Handle,4500)){
             var original=new OverlayShortcuts();for(int i=0;i<4;i++)original.Set(i,new ShortcutBinding{Key=(int)Keys.F20+i,Modifiers=7});string error;
             if(!owner.TryApply(original,out error))throw new Exception("Não foi possível reservar as combinações de teste: "+error);

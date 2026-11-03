@@ -23,7 +23,7 @@ public sealed class DriverAnalysisChart:Control {
     protected override void OnPaint(PaintEventArgs e){
         base.OnPaint(e);var g=e.Graphics;float scale=g.DpiX/96f;g.ScaleTransform(scale,scale);g.SmoothingMode=SmoothingMode.AntiAlias;g.TextRenderingHint=System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
         float w=Width/scale,h=Height/scale;hits.Clear();dots.Clear();using(var font=GtcTypography.Create(10,false))using(var bold=GtcTypography.Create(12,true))using(var ink=new SolidBrush(GtcTheme.Text))using(var muted=new SolidBrush(GtcTheme.Muted)){
-            if(Record==null){g.DrawString("Escolhe um piloto com voltas disponíveis.",font,muted,20,22);return;}
+            if(Record==null){g.DrawString(AppLanguage.T("Escolhe um piloto com voltas disponíveis."),font,muted,20,22);return;}
             var all=Record.Points(Stint);var clean=all.Where(l=>l.Clean&&DriverLapAnalysis.Value(l,Metric).HasValue).ToList();var points=all.Where(l=>(ShowOther||l.Clean)&&DriverLapAnalysis.Value(l,Metric).HasValue).ToList();var baseline=DriverLapAnalysis.Reference(all);
             double? reference=ShowTarget?(Metric==LapMetric.Lap?(double?)Target:DriverLapAnalysis.Value(baseline,Metric)):null;
             string caption=Metric==LapMetric.Lap?"Alvo do treino "+TimingData.Lap(Target)+" · janela ±"+Tolerance.ToString("0.00")+" s":baseline==null?"Sem volta limpa de referência":DriverLapAnalysis.Name(Metric)+" da melhor volta limpa · V"+baseline.Number+": "+DriverLapAnalysis.Format(DriverLapAnalysis.Value(baseline,Metric),Metric);
@@ -32,7 +32,7 @@ public sealed class DriverAnalysisChart:Control {
             int supplemented=all.Count(l=>l.DataSource=="local");g.DrawString(Record.Track+" · GTC"+(supplemented>0?" + "+supplemented+" locais":"")+" · "+clean.Count+"/"+all.Count+" tempos limpos · média "+DriverLapAnalysis.Format(DriverLapAnalysis.Mean(all,Metric),Metric),font,muted,18,36);
             g.DrawString(GtcHistoryMerge.TireSummary(all.FirstOrDefault(l=>l.Number==SelectedLap)),font,muted,18,55);
             if(h<210||w<300)return;AnalysisLegend.Draw(g,w,h-AnalysisLegend.Height,font,caption,reference.HasValue,true,Metric==LapMetric.Lap);
-            if(points.Count==0){g.DrawString(Metric==LapMetric.Lap?"Sem voltas limpas. Ativa «Incluir outras voltas» para consultar as restantes.":"Sem tempos deste setor na seleção. Os setores ausentes não são estimados.",font,ink,new RectangleF(24,85,w-48,h-190));return;}
+            if(points.Count==0){g.DrawString(AppLanguage.T(Metric==LapMetric.Lap?"Sem voltas limpas. Ativa «Incluir outras voltas» para consultar as restantes.":"Sem tempos deste setor na seleção. Os setores ausentes não são estimados."),font,ink,new RectangleF(24,85,w-48,h-190));return;}
             double min=points.Min(l=>DriverLapAnalysis.Value(l,Metric).Value),max=points.Max(l=>DriverLapAnalysis.Value(l,Metric).Value);if(reference.HasValue){double window=Metric==LapMetric.Lap?Tolerance:0;min=Math.Min(reference.Value-window,min);max=Math.Max(reference.Value+window,max);}double pad=Math.Max(.15,(max-min)*.15);min=Math.Max(0,min-pad);max+=pad;
             var plot=new RectangleF(78,88,Math.Max(30,w-106),Math.Max(20,h-AnalysisLegend.Height-128));Func<double,float> y=time=>plot.Bottom-(float)((time-min)/(max-min))*plot.Height;
             int from=Stint==null||Stint.Number==0?1:Stint.AfterLap+1,to=Math.Max(from+1,Stint==null||Stint.Number==0?Record.TotalLaps:Stint.ThroughLap);Func<double,float> x=lap=>plot.Left+(float)((lap-from)/(to-from))*plot.Width;

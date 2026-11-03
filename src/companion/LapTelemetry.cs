@@ -31,13 +31,14 @@ public sealed class LapTelemetryReader : IDisposable {
     public void Dispose(){if(view!=null){view.Dispose();view=null;}if(map!=null){map.Dispose();map=null;}}
 }
 public sealed class LapTelemetryWriter : IDisposable {
-    readonly string root; readonly bool requireRealtime; StreamWriter writer; string identity; double start,last=-1; DateTime flush=DateTime.MinValue; public string CurrentFile{get;private set;}
+    readonly string root; readonly bool requireRealtime; StreamWriter writer; string identity; double start,last=-1; DateTime flush=DateTime.MinValue,missingSince=DateTime.MinValue; public string CurrentFile{get;private set;}
     public LapTelemetryWriter(string path,bool requirePlayerRealtime=true){root=path;requireRealtime=requirePlayerRealtime;}
     static string Number(double n){return n.ToString("R",CultureInfo.InvariantCulture);}
     static bool Good(double n){return !double.IsNaN(n)&&!double.IsInfinity(n);}
     static string Text(string v){return "\""+(v??"").Replace("\"","\"\"")+"\"";}
     public void Observe(LiveSample s,LapTelemetryFrame f){
-        if(s==null||f==null||(requireRealtime&&!s.Realtime)||s.InPits||s.Slot!=f.Slot||!Good(f.Time)||!Good(f.LapStart)||!Good(f.X)||!Good(f.Y)||!Good(f.Z)||!Good(f.Throttle)||!Good(f.Brake)||!Good(f.Steering)||!Good(f.FilteredThrottle)||!Good(f.FilteredBrake)||!Good(f.FilteredSteering)||f.Time<f.LapStart||Math.Abs(s.SessionTime-f.Time)>3){Close();return;}
+        if(s==null||f==null||(requireRealtime&&!s.Realtime)||s.InPits||s.Slot!=f.Slot||!Good(f.Time)||!Good(f.LapStart)||!Good(f.X)||!Good(f.Y)||!Good(f.Z)||!Good(f.Throttle)||!Good(f.Brake)||!Good(f.Steering)||!Good(f.FilteredThrottle)||!Good(f.FilteredBrake)||!Good(f.FilteredSteering)||f.Time<f.LapStart||Math.Abs(s.SessionTime-f.Time)>3){if(missingSince==DateTime.MinValue)missingSince=DateTime.UtcNow;if((DateTime.UtcNow-missingSince).TotalSeconds>2)Close();return;}
+        missingSince=DateTime.MinValue;
         string key=s.Track+"|"+s.Car+"|"+s.Driver+"|"+s.Session+"|"+s.Slot;
         if(writer==null||identity!=key||Math.Abs(start-f.LapStart)>.01||f.Time<last){
             Close();Directory.CreateDirectory(root);identity=key;start=f.LapStart;last=-1;
